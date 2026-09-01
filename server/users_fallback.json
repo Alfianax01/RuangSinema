@@ -1,0 +1,24 @@
+[
+  {
+    "id": 1788153223537,
+    "name": "alfian",
+    "email": "azmialfian487@gmail.com",
+    "genres": [
+      "Series"
+    ],
+    "role": "VIP Member",
+    "created_at": "2026-08-31T05:13:43.537Z",
+    "salt": "21787e2d1ef9fa432aa4d799e1dbca28",
+    "passwordHash": "ee8b864417be0be17ae8cd4364cf303467d5c21c4f44d912cf3ce5d2989b58e5ed10caad746801edabb65ce0bc6f08daca0e21e074416aa667bbef31264137bd"
+  },
+  {
+    "id": 1788154867342,
+    "name": "Security Tester",
+    "email": "audit_test@ruangsinema.com",
+    "salt": "a3144a216d61588af97e53bb871e65e6",
+    "passwordHash": "fa7923b215129ba9c7cd34b0c9d685f506a6899a654142a10d2a1cab0aea1c8bdcb315aeab6ec0c8c46d910505db4063d677d91a14c547365fa48777d4326512",
+    "genres": [],
+    "role": "VIP Member",
+    "created_at": "2026-08-31T05:41:07.342Z"
+  }
+]

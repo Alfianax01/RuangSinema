@@ -1,0 +1,30 @@
+# Dependencies & Node
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+dist-ssr/
+
+# Flutter & Android build artifacts
+.dart_tool/
+**/.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+**/build/
+.gradle/
+**/.gradle/
+
+# Large APK binaries (>50MB)
+*.apk
+**/*.apk
+
+# Logs & temp
+logs/
+*.log
+*.local
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
