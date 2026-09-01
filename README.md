@@ -3,11 +3,23 @@
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![TMDb API](https://img.shields.io/badge/TMDb-API_v3-01B4E4?style=for-the-badge&logo=the-movie-database&logoColor=white)](https://www.themoviedb.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
 **RuangSinema** adalah platform streaming film, drama Korea (Drakor), drama China (Dracin), dorama Jepang, anime, dan film bioskop Indonesia terlengkap berbasis web modern dan aplikasi Android native. Dirancang dengan antarmuka sinematik kelas premium (*IDLIX & Netflix architecture*), pemutar video berkecepatan tinggi multi-server 60 FPS, serta integrasi penuh basis data TMDb.
+
+---
+
+## 📖 Tentang Proyek Ini (About The Project)
+
+> *"Berawal dari hobi dan kecintaan mendalam terhadap dunia perfilman, serial drama, dan sinema Asia, saya menciptakan **RuangSinema** sebagai wadah streaming impian yang bersih, cepat, tanpa pop-up iklan mengganggu, serta menyajikan pengalaman menonton berkelas bioskop langsung dari web maupun aplikasi smartphone."*
+
+Proyek ini dikembangkan secara mandiri untuk menghadirkan solusi hiburan digital yang menggabungkan:
+1. **Kenyamanan Menonton Maksimal**: Pemutar video tersemat 16:9 yang ringan dan langsung memutar video dalam kualitas Full HD 1080p tanpa jeda.
+2. **Koleksi Sinema Super Lengkap**: Dari karya sineas legendaris Indonesia (*The Raid, Janji Joni, Pengabdi Setan*), 100+ judul serial Drama Korea terpopuler, Drama China romantis/wuxia, hingga serial Anime mingguan.
+3. **Ekosistem Multi-Platform**: Sinkronisasi penuh antara aplikasi Web berbasis **React 19 & TypeScript** dengan aplikasi Android **Flutter** berakselerasi GPU hardware 60 FPS.
 
 ---
 
@@ -144,21 +156,21 @@ File hasil kompilasi siap rilis akan berada di folder `/dist`.
 ## 📂 Struktur Direktori Proyek
 
 ```plaintext
-bioskopku-web/
-├── public/                # Asset statis, favicon, logo, APK installer
-├── src/
-│   ├── components/        # Komponen UI (Navbar, MovieCard, ActorModal, DownloadModal, dll)
-│   ├── pages/             # Layar utama (HomeScreen, DetailScreen, DiscoverScreen, LibraryScreen, dll)
-│   ├── services/          # Integrasi API TMDb & logika streaming multi-server
-│   ├── types/             # Deklarasi tipe data TypeScript (Movie, Actor, Season, Playlist)
-│   ├── App.tsx            # Komponen root & routing state global
-│   ├── main.tsx           # Entry point aplikasi React
-│   └── index.css          # Styling Tailwind & animasi global
-├── index.html             # HTML template
-├── package.json           # Dependensi & script proyek
-├── tailwind.config.js     # Konfigurasi tema Tailwind CSS
-├── tsconfig.json          # Konfigurasi TypeScript
-└── vite.config.ts         # Konfigurasi Vite bundler
+RuangSinema/
+├── bioskopku-web/         # Web Application (React 19, Vite, TypeScript, Tailwind)
+│   ├── public/            # Asset statis, favicon, manifest
+│   ├── src/
+│   │   ├── components/    # Komponen UI (Navbar, MovieCard, ActorModal, DownloadModal)
+│   │   ├── pages/         # Layar utama (HomeScreen, DetailScreen, DiscoverScreen, LibraryScreen)
+│   │   ├── services/      # Integrasi TMDb API & gateway streaming
+│   │   └── types/         # Definisi TypeScript
+├── bioskopku_app/         # Mobile Android Application (Flutter 3.x, Native 60 FPS GPU Player)
+│   ├── lib/
+│   │   ├── screens/       # DetailScreen, PlayerScreen, HomeScreen, DiscoverScreen
+│   │   ├── services/      # ApiService TMDb & Multi-Stream Sources
+├── server/                # Backend Auth & User Persistence Server (Node.js/Express)
+├── database/              # Schema database & fallback store
+└── README.md              # Dokumentasi lengkap proyek
 ```
 
 ---
@@ -170,5 +182,5 @@ Proyek ini dilisensikan di bawah lisensi **MIT License** — silakan gunakan dan
 ---
 
 <p align="center">
-  Dibuat dengan ❤️ untuk pecinta sinema Indonesia & Asia.
+  Dibuat dengan ❤️ oleh <b>Alfianax01</b> untuk pecinta sinema Indonesia & Asia.
 </p>
