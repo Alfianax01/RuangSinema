@@ -95,14 +95,27 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Left: Brand Logo */}
         <div 
           onClick={() => handlePillClick('home')}
-          className="flex items-center gap-2 cursor-pointer select-none group shrink-0"
+          className="flex items-center gap-2.5 cursor-pointer select-none group shrink-0"
         >
-          <div className="w-8 h-8 rounded-lg bg-[#E50914] flex items-center justify-center shadow-lg shadow-[#E50914]/40 group-hover:scale-105 transition-transform">
-            <Film className="w-4.5 h-4.5 text-white stroke-[2.5]" />
+          <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#FF2E38] via-[#E50914] to-[#990008] p-0.5 shadow-lg shadow-[#E50914]/40 group-hover:shadow-[#E50914]/70 group-hover:scale-105 transition-all duration-300">
+            <div className="w-full h-full bg-[#121212] rounded-[10px] flex items-center justify-center overflow-hidden">
+              <svg viewBox="0 0 512 512" className="w-6 h-6 sm:w-6.5 sm:h-6.5 transform group-hover:rotate-6 transition-transform">
+                <path d="M140 130 C140 110, 160 98, 178 108 L386 234 C404 245, 404 267, 386 278 L178 404 C160 414, 140 402, 140 382 Z" fill="#E50914"/>
+                <path d="M165 145 L205 145 L185 205 L145 205 Z" fill="#FFFFFF" opacity="0.9"/>
+                <path d="M225 145 L265 145 L245 205 L205 205 Z" fill="#FFFFFF" opacity="0.9"/>
+                <path d="M285 145 L325 145 L305 205 L265 205 Z" fill="#FFFFFF" opacity="0.9"/>
+                <polygon points="230,210 320,256 230,302" fill="#FFFFFF"/>
+              </svg>
+            </div>
           </div>
-          <span className="text-xl sm:text-2xl font-black tracking-tighter text-[#E50914] uppercase drop-shadow">
-            RUANG<span className="text-white">SINEMA</span>
-          </span>
+          <div className="flex flex-col">
+            <span className="text-xl sm:text-2xl font-black tracking-tighter text-[#E50914] uppercase drop-shadow leading-none">
+              RUANG<span className="text-white">SINEMA</span>
+            </span>
+            <span className="text-[9px] font-bold tracking-widest text-zinc-400 uppercase leading-none mt-0.5 hidden sm:block">
+              CINEMA STREAMING
+            </span>
+          </div>
         </div>
 
         {/* Right: Search, Download App, and Profile */}
