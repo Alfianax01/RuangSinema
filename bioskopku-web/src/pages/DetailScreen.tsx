@@ -215,7 +215,6 @@ export const DetailScreen: React.FC<DetailScreenProps> = ({
                   src={currentSource.url}
                   title={currentMovie.title}
                   className="w-full h-full border-0"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                   allowFullScreen
                 />

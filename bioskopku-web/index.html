@@ -19,20 +19,28 @@
     <meta name="twitter:card" content="summary_large_image" />
 
     <title>RuangSinema — Streaming Film Bioskop, Drakor, Dracin & Anime</title>
-      <!-- Anti-Adware & Zero-Judol Protection Shield -->
+          <!-- Anti-Popup & Anti-Judol Window Guard -->
     <script>
       (function() {
-        // Intercept and neutralize unauthorized popup windows
-        const originalOpen = window.open;
+        // Prevent all unwanted popup windows without breaking video iframes
+        const origOpen = window.open;
         window.open = function(url, target, features) {
           if (!url) return null;
           const u = String(url).toLowerCase();
-          const isAllowed = u.includes('youtube.com') || u.includes('themoviedb.org') || u.includes('tmdb.org') || u.includes('ruangsinema') || u.includes('localhost');
+          const isAllowed = u.includes('youtube.com') || 
+                            u.includes('themoviedb.org') || 
+                            u.includes('tmdb.org') || 
+                            u.includes('ruangsinema') || 
+                            u.includes('vercel.app') || 
+                            u.includes('localhost') ||
+                            u.includes('multiembed') ||
+                            u.includes('vidlink') ||
+                            u.includes('vidsrc');
           if (!isAllowed) {
-            console.warn('[RuangSinema Shield] Blocked unauthorized ad / judol popup:', url);
+            console.warn('[RuangSinema Shield] Blocked unauthorized ad / judol window:', url);
             return null;
           }
-          return originalOpen.apply(this, arguments);
+          return origOpen.apply(this, arguments);
         };
       })();
     </script>
