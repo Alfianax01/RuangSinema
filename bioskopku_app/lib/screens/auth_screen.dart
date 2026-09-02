@@ -16,7 +16,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   bool _loading = false;
-  String? _error;
+    String? _success;
 
   void _submit() {
     final email = _emailController.text.trim();
@@ -24,24 +24,40 @@ class _AuthScreenState extends State<AuthScreen> {
     final name = _nameController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _error = 'Harap isi email dan password.');
+      setState(() {
+        _error = 'Harap isi email dan password.';
+        _success = null;
+      });
       return;
     }
     if (!_isLogin && name.isEmpty) {
-      setState(() => _error = 'Harap isi nama lengkap Anda.');
+      setState(() {
+        _error = 'Harap isi nama lengkap Anda.';
+        _success = null;
+      });
       return;
     }
 
     setState(() {
       _loading = true;
       _error = null;
+      _success = null;
     });
 
-    // Simulate instant secure auth
+    // Simulate instant secure auth & registration redirect to login
     Future.delayed(const Duration(milliseconds: 600), () {
       if (mounted) {
         setState(() => _loading = false);
-        widget.onLoginSuccess(email, _isLogin ? 'Member VIP' : name);
+        if (_isLogin) {
+          widget.onLoginSuccess(email, 'Member VIP');
+        } else {
+          // Redirect to login tab upon register success
+          setState(() {
+            _isLogin = true;
+            _passwordController.clear();
+            _success = 'Akun VIP berhasil dibuat! Silakan masuk dengan email dan kata sandi Anda.';
+          });
+        }
       }
     });
   }

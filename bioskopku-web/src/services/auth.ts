@@ -96,7 +96,7 @@ export async function registerUser(name: string, email: string, password: string
 
     const data = await res.json();
     if (res.ok && data.user) {
-      saveActiveUser(data.user);
+      // Synchronize credential locally for login verification
       syncLocalUser(data.user, password);
       return { success: true, user: data.user, message: data.message || 'Registrasi berhasil!' };
     }
@@ -117,7 +117,6 @@ export async function registerUser(name: string, email: string, password: string
   localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
 
   const user: User = { id: newUser.id, name: newUser.name, email: newUser.email, genres: [] };
-  saveActiveUser(user);
   return { success: true, user, message: 'Registrasi VIP berhasil!' };
 }
 
