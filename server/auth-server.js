@@ -351,6 +351,54 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+            // 4. RESET PASSWORD (Update MySQL phpMyAdmin & Fallback)
+      if (pathname === '/api/auth/reset-password') {
+        const rawEmail = data.email;
+        const newPassword = data.newPassword;
+
+        if (!rawEmail || !newPassword) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'error', message: 'Email dan kata sandi baru wajib diisi.' }));
+          return;
+        }
+
+        const email = rawEmail.toLowerCase().trim();
+        const salt = crypto.randomBytes(16).toString('hex');
+        const passwordHash = hashPassword(newPassword, salt);
+        let updated = false;
+
+        // Update MySQL Database Table
+        if (isDbConnected && dbPool) {
+          try {
+            const [result] = await dbPool.query(
+              'UPDATE users SET password = ?, salt = ? WHERE email = ?',
+              [passwordHash, salt, email]
+            );
+            if (result.affectedRows > 0) {
+              updated = true;
+              console.log(`🔑 [MySQL phpMyAdmin] Reset password for user (${email})`);
+            }
+          } catch (dbErr) {}
+        }
+
+        // Update Fallback JSON
+        const fallbackUsers = getFallbackUsers();
+        const found = fallbackUsers.find(u => u.email === email);
+        if (found) {
+          found.salt = salt;
+          found.passwordHash = passwordHash;
+          saveFallbackUsers(fallbackUsers);
+          updated = true;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          status: 'success',
+          message: 'Kata sandi berhasil diperbarui! Silakan masuk dengan kata sandi baru Anda.'
+        }));
+        return;
+      }
+
       // 3. UPDATE PREFERENCES
       if (pathname === '/api/auth/preferences') {
         const { email, genres } = data;

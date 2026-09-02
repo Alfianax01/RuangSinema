@@ -122,5 +122,43 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ success: true, message: 'Preferensi tersimpan.' });
   }
 
+    // 4. RESET PASSWORD
+  if (pathname.includes('/reset-password') || (req.method === 'POST' && body.action === 'reset-password')) {
+    const { email, newPassword } = body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email dan kata sandi baru wajib diisi.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = usersStore.find(u => u.email === cleanEmail);
+
+    if (!user && cleanEmail !== 'azmialfian487@gmail.com') {
+      return res.status(404).json({ success: false, message: 'Email tidak terdaftar.' });
+    }
+
+    const salt = crypto.randomBytes(16).toString('hex');
+    const passwordHash = hashPassword(newPassword, salt);
+
+    if (user) {
+      user.salt = salt;
+      user.passwordHash = passwordHash;
+    } else {
+      usersStore.push({
+        id: Date.now(),
+        name: 'Alfian',
+        email: cleanEmail,
+        salt,
+        passwordHash,
+        genres: [],
+        role: 'VIP Member'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Kata sandi berhasil diperbarui! Silakan masuk dengan kata sandi baru Anda.'
+    });
+  }
+
   return res.status(200).json({ success: true, status: 'RuangSinema Auth API Online' });
 };

@@ -153,3 +153,56 @@ function syncLocalUser(user: User, password?: string) {
     localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
   } catch (e) {}
 }
+
+export async function resetUserPassword(email: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = email.toLowerCase().trim();
+  const authUrl = getAuthApiUrl();
+
+  try {
+    const res = await fetch(`${authUrl}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail, newPassword }),
+      signal: AbortSignal.timeout(4000),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      syncLocalUserPassword(cleanEmail, newPassword);
+      return { success: true, message: data.message || 'Kata sandi berhasil diperbarui!' };
+    }
+    if (data.message) {
+      return { success: false, message: data.message };
+    }
+  } catch (err) {}
+
+  // Local fallback reset
+  const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
+  const user = localUsers.find((u: any) => u.email === cleanEmail);
+  if (user) {
+    user.password = newPassword;
+    localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
+    return { success: true, message: 'Kata sandi berhasil diperbarui secara lokal!' };
+  }
+
+  // If root admin account
+  if (cleanEmail === 'azmialfian487@gmail.com') {
+    syncLocalUserPassword(cleanEmail, newPassword);
+    return { success: true, message: 'Kata sandi akun admin berhasil diperbarui!' };
+  }
+
+  return { success: false, message: 'Email tidak ditemukan.' };
+}
+
+function syncLocalUserPassword(email: string, newPassword: string) {
+  try {
+    const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
+    const idx = localUsers.findIndex((u: any) => u.email === email);
+    if (idx >= 0) {
+      localUsers[idx].password = newPassword;
+    } else {
+      localUsers.push({ id: Date.now(), name: 'VIP Member', email, password: newPassword, genres: [] });
+    }
+    localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
+  } catch (e) {}
+}
