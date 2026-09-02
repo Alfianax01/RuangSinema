@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 let memoryUsers = [
   {
@@ -27,7 +27,7 @@ function verifyPassword(password, salt, storedHash) {
   }
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   try {
     // Set CORS Headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -205,4 +205,4 @@ module.exports = async function handler(req, res) {
     res.statusCode = 500;
     res.end(JSON.stringify({ success: false, error: fatalError.message, stack: fatalError.stack }));
   }
-};
+}
