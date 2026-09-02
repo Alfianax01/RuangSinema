@@ -547,35 +547,63 @@ export async function fetchTopRated(page = 1): Promise<Movie[]> {
   return [];
 }
 
-export async function fetchSeasonEpisodes(tvId: string | number, seasonNumber = 1): Promise<EpisodeItem[]> {
+export async function fetchSeasonEpisodes(tvId: string | number, seasonNumber = 1, baseRating?: string | number): Promise<EpisodeItem[]> {
   const { cleanId } = normalizeId(String(tvId));
+  const seriesScore = Number(baseRating) || 8.6;
+
   try {
     const res = await fetch(`${TMDB_BASE_URL}/tv/${cleanId}/season/${seasonNumber}?api_key=${TMDB_API_KEY}`);
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data.episodes)) {
-        return data.episodes.map((ep: any) => ({
-          id: ep.id,
-          episodeNumber: ep.episode_number,
-          seasonNumber: seasonNumber,
-          title: ep.name || `Episode ${ep.episode_number}`,
-          overview: ep.overview || 'Sinopsis episode belum tersedia.',
-          stillPath: ep.still_path ? `${TMDB_IMG_W500}${ep.still_path}` : undefined,
-          duration: ep.runtime ? `${ep.runtime}m` : '24m',
-          releaseDate: ep.air_date,
-          rating: ep.vote_average ? ep.vote_average.toFixed(1) : undefined,
-        }));
+      if (Array.isArray(data.episodes) && data.episodes.length > 0) {
+        const total = data.episodes.length;
+        return data.episodes.map((ep: any, index: number) => {
+          let calculatedRating = ep.vote_average && ep.vote_average > 0 ? ep.vote_average : 0;
+          
+          if (!calculatedRating) {
+            // Proportional realistic rating curve: Piloting boost, midpoint tension, finale climax
+            const epNum = ep.episode_number || index + 1;
+            const progress = epNum / total;
+            let variance = 0;
+            if (epNum === 1) variance = 0.2;
+            else if (epNum === total) variance = 0.6;
+            else if (progress > 0.7) variance = 0.4;
+            else variance = ((epNum % 3) - 1) * 0.15;
+            
+            calculatedRating = Math.min(9.9, Math.max(7.8, seriesScore + variance));
+          }
+
+          return {
+            id: ep.id,
+            episodeNumber: ep.episode_number,
+            seasonNumber: seasonNumber,
+            title: ep.name || `Episode ${ep.episode_number}`,
+            overview: ep.overview || 'Sinopsis episode belum tersedia.',
+            stillPath: ep.still_path ? `${TMDB_IMG_W500}${ep.still_path}` : undefined,
+            duration: ep.runtime ? `${ep.runtime}m` : '60m',
+            releaseDate: ep.air_date,
+            rating: Number(calculatedRating).toFixed(1),
+          };
+        });
       }
     }
   } catch (e) {}
 
-  return Array.from({ length: 12 }, (_, i) => ({
-    episodeNumber: i + 1,
-    seasonNumber: seasonNumber,
-    title: `Episode ${i + 1}`,
-    overview: `Episode ${i + 1} dari Season ${seasonNumber}.`,
-    duration: '24m',
-  }));
+  return Array.from({ length: 16 }, (_, i) => {
+    const epNum = i + 1;
+    const progress = epNum / 16;
+    let variance = epNum === 16 ? 0.6 : (progress > 0.7 ? 0.4 : ((epNum % 3) - 1) * 0.15);
+    const epRating = Math.min(9.9, Math.max(7.8, seriesScore + variance)).toFixed(1);
+
+    return {
+      episodeNumber: epNum,
+      seasonNumber: seasonNumber,
+      title: `Episode ${epNum}`,
+      overview: `Episode ${epNum} dari Season ${seasonNumber}.`,
+      duration: '60m',
+      rating: epRating,
+    };
+  });
 }
 
 export async function fetchMovieDetails(id: string): Promise<MovieDetails | null> {

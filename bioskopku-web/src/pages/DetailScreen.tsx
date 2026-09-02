@@ -105,7 +105,7 @@ export const DetailScreen: React.FC<DetailScreenProps> = ({
   useEffect(() => {
     if (isSeries) {
       setLoadingEpisodes(true);
-      fetchSeasonEpisodes(currentMovie._id, selectedSeason).then((eps) => {
+      fetchSeasonEpisodes(currentMovie._id, selectedSeason, currentMovie.rating).then((eps) => {
         setEpisodes(eps);
         setLoadingEpisodes(false);
       });
