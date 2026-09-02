@@ -1,10 +1,17 @@
 {
   "buildCommand": "cd bioskopku-web && npm install && npm run build",
   "outputDirectory": "bioskopku-web/dist",
-  "framework": "vite",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/auth/(.*)",
+      "destination": "/api/auth"
+    },
+    {
+      "source": "/api/auth",
+      "destination": "/api/auth"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
