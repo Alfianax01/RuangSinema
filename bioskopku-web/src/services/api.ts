@@ -262,13 +262,67 @@ export async function fetchPopularSeries(page = 1): Promise<Movie[]> {
   return [];
 }
 
-// 🇰🇷 DRAKOR API INTEGRATION (https://drakor-api.herokuapp.com/api + 300+ TMDb K-Drama Master Feed)
+// 🇰🇷 DRAKOR MASTER ENGINE (TWINKLING WATERMELON + 300+ ICONIC K-DRAMAS)
 export const DRAKOR_HEROKU_API_URL = 'https://drakor-api.herokuapp.com/api';
+
+// Priority Top-Tier Masterpiece Korean Dramas
+const PRIORITY_KDRAMA_IDS = [
+  212204, // Twinkling Watermelon (반짝이는 워터멜론)
+  209867, // Queen of Tears (눈물의 여왕)
+  226411, // Lovely Runner (선재 업고 튀어)
+  225660, // Marry My Husband (내 남편과 결혼해줘)
+  217032, // Death's Game (이재, 곧 죽습니다)
+  294095, // A Bona Fide Killer / A Shop for Killers
+  93405,  // Squid Game (오징어 게임)
+  136283, // Moving (무빙)
+  98992,  // Hospital Playlist (슬기로운 의사생활)
+  94796,  // Crash Landing on You (사랑의 불시착)
+  67915,  // Goblin / Guardian: The Lonely and Great God (도깨비)
+  65249,  // Descendants of the Sun (태양의 후예)
+  117376, // Vincenzo (빈센조)
+  96162,  // Itaewon Class (이태원 클라쓰)
+  154825, // Business Proposal (사내맞선)
+  213026, // King the Land (킹더랜드)
+  90447,  // Hotel Del Luna (호텔 델루나)
+  135157, // Alchemy of Souls (환혼)
+  197067, // Extraordinary Attorney Woo (이상한 변호사 우영우)
+  153496, // Twenty-Five Twenty-One (스물다섯 스물하나)
+  136262, // Our Beloved Summer (그 해 우리는)
+  68349,  // Weightlifting Fairy Kim Bok-joo (역도요정 김복주)
+  69629,  // Strong Girl Bong-soon (힘쎈여자 도봉순)
+  79240,  // What's Wrong with Secretary Kim (김비서가 왜 그럴까)
+  127532, // Hometown Cha-Cha-Cha (갯마을 차차차)
+  64254,  // Reply 1988 (응답하라 1988)
+  210073, // Weak Hero Class 1 (약한영웅 Class 1)
+  224607, // My Demon (마이 데몬)
+  218230, // Doctor Slump (닥터슬럼프)
+  224884, // Welcome to Samdal-ri (웰컴투 삼달리)
+  242876, // Pyramid Game (피라미드 게임)
+  208249, // A Killer Paradox (살인자ㅇ난감)
+  240361, // Love Next Door (엄마친구아들)
+  248567, // No Gain No Love (손해 보기 싫어서)
+  242101, // The Judge from Hell (지옥에서 온 판사)
+  202250, // Gyeongseong Creature (경성크리처)
+  96580,  // Sweet Home (스위트홈)
+  137437, // The Glory (더 글로리)
+  99966,  // All of Us Are Dead (지금 우리 학교는)
+  70593,  // Kingdom (킹덤)
+  120998, // Taxi Driver (모범택시)
+  105248, // Flower of Evil (악의 꽃)
+  65942,  // Signal (시그널)
+  67204,  // W: Two Worlds (W)
+  66433,  // Moon Lovers: Scarlet Heart Ryeo (달의 연인 - 보보경심 려)
+  113988, // Mr. Queen (철인왕후)
+  213713, // Bloodhounds (사냥개들)
+  128095, // D.P.
+  202958, // Celebrity (셀러브리티)
+  135010, // Happiness (해피니스)
+];
 
 export async function fetchFromDrakorHerokuApi(endpoint = 'recent'): Promise<Movie[]> {
   try {
     const url = `${DRAKOR_HEROKU_API_URL}/${endpoint}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(3500) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       const data = await res.json();
       const list = Array.isArray(data) ? data : (data?.data || data?.results || []);
@@ -277,15 +331,15 @@ export async function fetchFromDrakorHerokuApi(endpoint = 'recent'): Promise<Mov
           _id: `drakor-${item.endpoint || item.slug || item.id || idx}`,
           title: item.title || item.judul || 'Drama Korea',
           type: 'series' as const,
-          posterImg: item.poster || item.thumbnail || item.image || 'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
-          backdropImg: item.poster || item.thumbnail || 'https://image.tmdb.org/t/p/original/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
-          rating: String(item.rating || item.score || '8.5'),
-          year: item.year || item.tahun || '2024',
+          posterImg: item.poster || item.thumbnail || item.image || 'https://image.tmdb.org/t/p/w500/bwTzW1wTgUxUOQruhT8DvinUYgR.jpg',
+          backdropImg: item.poster || item.thumbnail || 'https://image.tmdb.org/t/p/original/efaMS00Fevc3fw2dbeP7rh22O6D.jpg',
+          rating: String(item.rating || item.score || '8.8'),
+          year: item.year || item.tahun || '2023',
           ageRating: '13+',
           duration: item.episodes ? `${item.episodes} Episode` : '16 Episode',
           quality: 'HD',
           qualityResolution: '1080p FULL HD',
-          releaseDate: item.release || '2024',
+          releaseDate: item.release || '2023',
           genres: ['Drakor', 'Drama Korea', 'Sub Indo', ...(Array.isArray(item.genres) ? item.genres : [])],
           synopsis: item.synopsis || item.sinopsis || 'Nonton drama Korea subtitle Indonesia terlengkap.',
           trailerUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(item.title || 'Drakor')}+trailer`,
@@ -298,46 +352,48 @@ export async function fetchFromDrakorHerokuApi(endpoint = 'recent'): Promise<Mov
         }));
       }
     }
-  } catch (e) {
-    // Graceful fallback to TMDb K-Drama engine if Heroku dyno is offline
-  }
+  } catch (e) {}
   return [];
 }
 
 export async function fetchKdramaSeries(page = 1): Promise<Movie[]> {
   try {
-    // 1. Fetch from Drakor Heroku API (page / recent)
-    const herokuPromise = fetchFromDrakorHerokuApi(`page/${page}`).catch(() => []);
-    
-    // 2. Direct fetch for iconic priority titles
-    const pBona = fetch(`${TMDB_BASE_URL}/tv/294095?api_key=${TMDB_API_KEY}&append_to_response=credits,videos`).then(r => r.json()).catch(() => null);
-    
-    // 3. Multi-page concurrent discover calls (popularity, vote count, trending, latest)
-    const p1 = fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=ko&without_genres=10764,10767,10763&sort_by=popularity.desc&page=${page}&include_adult=false`).then(r => r.json()).catch(() => null);
-    const p2 = fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=ko&without_genres=10764,10767,10763&sort_by=popularity.desc&page=${page + 1}&include_adult=false`).then(r => r.json()).catch(() => null);
-    const p3 = fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=ko&without_genres=10764,10767,10763&sort_by=popularity.desc&page=${page + 2}&include_adult=false`).then(r => r.json()).catch(() => null);
-    const p4 = fetch(`${TMDB_BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=ko&without_genres=10764,10767,10763&sort_by=vote_count.desc&page=${page}&include_adult=false`).then(r => r.json()).catch(() => null);
-    const p5 = fetch(`${TMDB_BASE_URL}/trending/tv/week?api_key=${TMDB_API_KEY}&page=${page}`).then(r => r.json()).catch(() => null);
+    // 1. Direct fetch for Priority Masterpiece K-Dramas (including Twinkling Watermelon)
+    const priorityPromises = PRIORITY_KDRAMA_IDS.slice((page - 1) * 15, page * 15).map(id => 
+      cachedFetchJson(`${TMDB_BASE_URL}/tv/${id}?api_key=${TMDB_API_KEY}&append_to_response=credits,videos`)
+    );
 
-    const [herokuItems, bona, d1, d2, d3, d4, d5] = await Promise.all([herokuPromise, pBona, p1, p2, p3, p4, p5]);
-    
-    const trendingKDrama = (d5?.results || []).filter((item: any) => item.original_language === 'ko');
+    // 2. Discover multi-page concurrent calls
+    const pDiscover1 = cachedFetchJson(`${TMDB_BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=ko&without_genres=10764,10767,10763&sort_by=popularity.desc&page=${page}&include_adult=false`);
+    const pDiscover2 = cachedFetchJson(`${TMDB_BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=ko&without_genres=10764,10767,10763&sort_by=vote_count.desc&page=${page}&include_adult=false`);
+    const pDiscover3 = cachedFetchJson(`${TMDB_BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=ko&without_genres=10764,10767,10763&sort_by=first_air_date.desc&page=${page}&include_adult=false`);
+    const pTrending = cachedFetchJson(`${TMDB_BASE_URL}/trending/tv/week?api_key=${TMDB_API_KEY}&page=${page}`);
+    const pHeroku = fetchFromDrakorHerokuApi(`page/${page}`).catch(() => []);
+
+    const [priorityResults, d1, d2, d3, trending, herokuItems] = await Promise.all([
+      Promise.all(priorityPromises),
+      pDiscover1,
+      pDiscover2,
+      pDiscover3,
+      pTrending,
+      pHeroku
+    ]);
+
+    const trendingKorean = (trending?.results || []).filter((item: any) => item.original_language === 'ko');
 
     const rawList = [
+      ...priorityResults.filter(Boolean),
+      ...trendingKorean,
       ...herokuItems,
-      bona,
-      ...trendingKDrama,
-      ...(d1?.results || []), 
-      ...(d2?.results || []), 
-      ...(d3?.results || []),
-      ...(d4?.results || [])
+      ...(d1?.results || []),
+      ...(d2?.results || []),
+      ...(d3?.results || [])
     ];
 
     const seen = new Set();
     const unique: Movie[] = [];
     for (const item of rawList) {
       if (!item) continue;
-      // If already a mapped Movie object
       if (item._id && !seen.has(item._id)) {
         seen.add(item._id);
         unique.push(item);
