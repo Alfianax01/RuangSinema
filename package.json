@@ -1,0 +1,10 @@
+{
+  "name": "ruangsinema",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix bioskopku-web",
+    "build": "npm run build --prefix bioskopku-web",
+    "preview": "npm run preview --prefix bioskopku-web"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd bioskopku-web && npm install && npm run build",
+  "outputDirectory": "bioskopku-web/dist",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
