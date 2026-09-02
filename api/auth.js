@@ -1,8 +1,5 @@
 const crypto = require('crypto');
-const https = require('https');
 
-// Persistent Global Cloud Storage Key for Vercel
-const CLOUD_STORAGE_API = 'https://api.jsonbin.io/v3/b/66d52f6ee41b4d34e4299b82'; // Free persistent cloud bin
 let memoryUsers = [
   {
     id: 1,
@@ -30,6 +27,35 @@ function verifyPassword(password, salt, storedHash) {
   }
 }
 
+async function getRequestBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (req.body && typeof req.body === 'string') {
+    try { return JSON.parse(req.body); } catch (e) { return {}; }
+  }
+
+  return new Promise((resolve) => {
+    let raw = '';
+    req.on('data', chunk => { raw += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch (e) {
+        resolve({});
+      }
+    });
+    req.on('error', () => resolve({}));
+  });
+}
+
+function sendJson(res, statusCode, data) {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.end(JSON.stringify(data));
+}
+
 module.exports = async function handler(req, res) {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -37,14 +63,16 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    res.statusCode = 200;
+    res.end();
+    return;
   }
 
   const pathname = req.url || '';
-  const body = req.body || {};
+  const body = await getRequestBody(req);
 
-  // GET /api/auth/users (Return all users for phpMyAdmin sync)
-  if (req.method === 'GET' && (pathname.includes('/users') || req.query?.action === 'users')) {
+  // GET /api/auth/users
+  if (req.method === 'GET' && (pathname.includes('/users') || req.url?.includes('action=users'))) {
     const safeUsers = memoryUsers.map(u => ({
       id: u.id,
       name: u.name,
@@ -55,19 +83,19 @@ module.exports = async function handler(req, res) {
       role: u.role || 'VIP Member',
       created_at: u.created_at
     }));
-    return res.status(200).json({ success: true, users: safeUsers, count: safeUsers.length });
+    return sendJson(res, 200, { success: true, users: safeUsers, count: safeUsers.length });
   }
 
   // 1. REGISTER
   if (pathname.includes('/register') || (req.method === 'POST' && body.action === 'register')) {
     const { name, email, password } = body;
     if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Nama, email, dan kata sandi wajib diisi.' });
+      return sendJson(res, 400, { success: false, message: 'Nama, email, dan kata sandi wajib diisi.' });
     }
 
     const cleanEmail = email.toLowerCase().trim();
     if (memoryUsers.some(u => u.email === cleanEmail)) {
-      return res.status(409).json({ success: false, message: 'Email sudah terdaftar. Silakan masuk.' });
+      return sendJson(res, 409, { success: false, message: 'Email sudah terdaftar. Silakan masuk.' });
     }
 
     const salt = crypto.randomBytes(16).toString('hex');
@@ -86,7 +114,7 @@ module.exports = async function handler(req, res) {
 
     memoryUsers.unshift(newUser);
 
-    return res.status(201).json({
+    return sendJson(res, 201, {
       success: true,
       message: 'Registrasi VIP berhasil!',
       user: {
@@ -105,13 +133,12 @@ module.exports = async function handler(req, res) {
   if (pathname.includes('/login') || (req.method === 'POST' && body.action === 'login')) {
     const { email, password } = body;
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email dan kata sandi wajib diisi.' });
+      return sendJson(res, 400, { success: false, message: 'Email dan kata sandi wajib diisi.' });
     }
 
     const cleanEmail = email.toLowerCase().trim();
     let user = memoryUsers.find(u => u.email === cleanEmail);
 
-    // Dynamic auto-register seed for test
     if (!user && cleanEmail === 'azmialfian487@gmail.com') {
       const salt = crypto.randomBytes(16).toString('hex');
       user = {
@@ -128,15 +155,15 @@ module.exports = async function handler(req, res) {
     }
 
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Email atau kata sandi salah.' });
+      return sendJson(res, 401, { success: false, message: 'Email atau kata sandi salah.' });
     }
 
     const isValid = verifyPassword(password, user.salt, user.passwordHash);
     if (!isValid) {
-      return res.status(401).json({ success: false, message: 'Email atau kata sandi salah.' });
+      return sendJson(res, 401, { success: false, message: 'Email atau kata sandi salah.' });
     }
 
-    return res.status(200).json({
+    return sendJson(res, 200, {
       success: true,
       message: 'Login berhasil!',
       user: {
@@ -153,25 +180,25 @@ module.exports = async function handler(req, res) {
   if (pathname.includes('/reset-password') || (req.method === 'POST' && body.action === 'reset-password')) {
     const { email, newPassword } = body;
     if (!email || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Email dan kata sandi baru wajib diisi.' });
+      return sendJson(res, 400, { success: false, message: 'Email dan kata sandi baru wajib diisi.' });
     }
 
     const cleanEmail = email.toLowerCase().trim();
     const user = memoryUsers.find(u => u.email === cleanEmail);
 
     if (!user) {
-      return res.status(404).json({ success: false, message: 'Email tidak terdaftar.' });
+      return sendJson(res, 404, { success: false, message: 'Email tidak terdaftar.' });
     }
 
     const salt = crypto.randomBytes(16).toString('hex');
     user.salt = salt;
     user.passwordHash = hashPassword(newPassword, salt);
 
-    return res.status(200).json({
+    return sendJson(res, 200, {
       success: true,
       message: 'Kata sandi berhasil diperbarui! Silakan masuk dengan kata sandi baru Anda.'
     });
   }
 
-  return res.status(200).json({ success: true, service: 'RuangSinema Cloud Auth API Online' });
+  return sendJson(res, 200, { success: true, service: 'RuangSinema Cloud Auth API Online' });
 };
