@@ -1,0 +1,286 @@
+
+import type { MovieDetails, SavedMovieItem, GenreItem } from '../types';
+
+export const FEATURED_MOVIES: MovieDetails[] = [
+  {
+    _id: 'dune-part-two-2024',
+    title: 'Dune: Part Two',
+    type: 'movie',
+    posterImg: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop',
+    backdropImg: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1600&auto=format&fit=crop',
+    rating: '4.8',
+    year: '2024',
+    ageRating: 'PG-13',
+    duration: '2h 48m',
+    quality: 'HD',
+    qualityResolution: '4K ULTRA HD',
+    releaseDate: '2024',
+    genres: ['Sci-Fi', 'Adventure', 'Action'],
+    synopsis: 'Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family. Facing a choice between the love of his life and the fate of the known universe, he endeavors to prevent a terrible future only he can foresee.',
+    trailerUrl: 'https://www.youtube.com/watch?v=Way9Dexny3w',
+    directors: ['Denis Villeneuve'],
+    countries: ['United States', 'Canada'],
+    casts: ['Timothée Chalamet', 'Zendaya', 'Rebecca Ferguson', 'Javier Bardem', 'Josh Brolin', 'Austin Butler'],
+    castMembers: [
+      { name: 'Timothée C.', character: 'Paul Atreides', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=faces' },
+      { name: 'Zendaya', character: 'Chani', avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=faces' },
+      { name: 'Rebecca F.', character: 'Lady Jessica', avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=faces' },
+      { name: 'Austin Butler', character: 'Feyd-Rautha', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces' },
+    ]
+  },
+  {
+    _id: 'interstellar-2014',
+    title: 'Interstellar',
+    type: 'movie',
+    posterImg: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=800&auto=format&fit=crop',
+    backdropImg: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=1600&auto=format&fit=crop',
+    rating: '4.8',
+    year: '2014',
+    ageRating: 'PG-13',
+    duration: '2h 49m',
+    quality: 'HD',
+    qualityResolution: 'IMAX HD',
+    releaseDate: '2014',
+    genres: ['Sci-Fi', 'Adventure', 'Drama', 'Mystery'],
+    synopsis: 'A team of explorers travel through a wormhole in space in an attempt to ensure humanity\'s survival. Faced with mysterious new worlds and time dilution, they must make the ultimate sacrifice to save Earth.',
+    trailerUrl: 'https://www.youtube.com/watch?v=zSWdZVtXT7E',
+    directors: ['Christopher Nolan'],
+    countries: ['United States', 'United Kingdom'],
+    casts: ['Matthew McConaughey', 'Anne Hathaway', 'Jessica Chastain', 'Michael Caine', 'Matt Damon'],
+    castMembers: [
+      { name: 'Matthew M.', character: 'Cooper', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=faces' },
+      { name: 'Anne Hatha...', character: 'Brand', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=faces' },
+      { name: 'Jessica C.', character: 'Murph', avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=faces' },
+      { name: 'Michael C.', character: 'Prof. Brand', avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces' },
+    ]
+  },
+  {
+    _id: 'oppenheimer-2023',
+    title: 'Oppenheimer',
+    type: 'movie',
+    posterImg: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop',
+    backdropImg: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=1600&auto=format&fit=crop',
+    rating: '4.9',
+    year: '2023',
+    ageRating: 'R',
+    duration: '3h 0m',
+    quality: 'HD',
+    qualityResolution: '4K UHD',
+    releaseDate: '2023',
+    genres: ['Biography', 'Drama', 'History'],
+    synopsis: 'The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb during World War II.',
+    trailerUrl: 'https://www.youtube.com/watch?v=uYPbbksJxIg',
+    directors: ['Christopher Nolan'],
+    countries: ['United States'],
+    casts: ['Cillian Murphy', 'Emily Blunt', 'Matt Damon', 'Robert Downey Jr.', 'Florence Pugh'],
+    castMembers: [
+      { name: 'Cillian M.', character: 'J. Robert Oppenheimer', avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=faces' },
+      { name: 'Emily Blunt', character: 'Kitty Oppenheimer', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=faces' },
+      { name: 'Robert D. Jr.', character: 'Lewis Strauss', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces' },
+    ]
+  },
+  {
+    _id: 'the-batman-2022',
+    title: 'The Batman',
+    type: 'movie',
+    posterImg: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=800&auto=format&fit=crop',
+    backdropImg: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1600&auto=format&fit=crop',
+    rating: '4.6',
+    year: '2022',
+    ageRating: 'PG-13',
+    duration: '2h 56m',
+    quality: 'HD',
+    qualityResolution: '1080p',
+    releaseDate: '2022',
+    genres: ['Action', 'Crime', 'Drama'],
+    synopsis: 'When a sadistic serial killer begins murdering key political figures in Gotham, Batman is forced to investigate the city\'s hidden corruption and question his family\'s involvement.',
+    trailerUrl: 'https://www.youtube.com/watch?v=mqqft2x_Aa4',
+    directors: ['Matt Reeves'],
+    countries: ['United States'],
+    casts: ['Robert Pattinson', 'Zoë Kravitz', 'Paul Dano', 'Colin Farrell'],
+    castMembers: [
+      { name: 'Robert P.', character: 'Bruce Wayne / Batman', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=faces' },
+      { name: 'Zoë Kravitz', character: 'Selina Kyle', avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=faces' },
+    ]
+  }
+];
+
+export const MOCK_TRENDING: MovieDetails[] = [
+  FEATURED_MOVIES[2],
+  FEATURED_MOVIES[1],
+  FEATURED_MOVIES[3],
+];
+
+export const MOCK_NEW_RELEASES: MovieDetails[] = [
+  {
+    _id: 'civil-war-2024',
+    title: 'Civil War',
+    type: 'movie',
+    posterImg: 'https://images.unsplash.com/photo-1533488765986-dfa2a9939acd?q=80&w=800&auto=format&fit=crop',
+    rating: '4.5',
+    year: '2024',
+    ageRating: 'R',
+    duration: '1h 49m',
+    quality: 'HD',
+    releaseDate: '2024',
+    genres: ['Action', 'Drama', 'War'],
+    synopsis: 'In a dystopian future America, a team of military-embedded journalists races against time to reach Washington, D.C., before rebel factions descend upon the White House.',
+    trailerUrl: 'https://www.youtube.com/watch?v=aDyQxtg0V2w',
+    directors: ['Alex Garland'],
+    countries: ['United States', 'United Kingdom'],
+    casts: ['Kirsten Dunst', 'Wagner Moura', 'Cailee Spaeny']
+  },
+  {
+    _id: 'challengers-2024',
+    title: 'Challengers',
+    type: 'movie',
+    posterImg: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=800&auto=format&fit=crop',
+    rating: '4.3',
+    year: '2024',
+    ageRating: 'R',
+    duration: '2h 11m',
+    quality: 'HD',
+    releaseDate: '2024',
+    genres: ['Drama', 'Romance', 'Sport'],
+    synopsis: 'Tashi, a tennis player-turned-coach, has transformed her husband Art into a world-famous Grand Slam champion. To shake him out of his recent losing streak, she enters him into a challenger tournament where he faces her former flame.',
+    trailerUrl: 'https://www.youtube.com/watch?v=VobTTbg-te0',
+    directors: ['Luca Guadagnino'],
+    countries: ['United States'],
+    casts: ['Zendaya', 'Josh O\'Connor', 'Mike Faist']
+  },
+  {
+    _id: 'furiosa-2024',
+    title: 'Furiosa',
+    type: 'movie',
+    posterImg: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop',
+    rating: '4.7',
+    year: '2024',
+    ageRating: 'R',
+    duration: '2h 28m',
+    quality: 'HD',
+    releaseDate: '2024',
+    genres: ['Action', 'Adventure', 'Sci-Fi'],
+    synopsis: 'As the world fell, young Furiosa is snatched from the Green Place of Many Mothers and falls into the hands of a great Biker Horde led by the Warlord Dementus.',
+    trailerUrl: 'https://www.youtube.com/watch?v=XJMuhwVlca4',
+    directors: ['George Miller'],
+    countries: ['Australia', 'United States'],
+    casts: ['Anya Taylor-Joy', 'Chris Hemsworth', 'Tom Burke']
+  }
+];
+
+export const MOCK_DISCOVER_POPULAR: MovieDetails[] = [
+  {
+    _id: 'everything-everywhere-all-at-once-2022',
+    title: 'Everything Everywhere All at Once',
+    type: 'movie',
+    posterImg: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop',
+    rating: '4.7',
+    year: '2022',
+    ageRating: 'R',
+    duration: '2h 19m',
+    quality: 'HD',
+    releaseDate: '2022',
+    genres: ['Action', 'Adventure', 'Comedy', 'Sci-Fi'],
+    synopsis: 'A middle-aged Chinese immigrant is swept up into an insane adventure in which she alone can save existence by exploring other universes and connecting with the lives she could have led.',
+    trailerUrl: 'https://www.youtube.com/watch?v=wxN1T1uxQ2g',
+    directors: ['Daniel Kwan', 'Daniel Scheinert'],
+    countries: ['United States'],
+    casts: ['Michelle Yeoh', 'Ke Huy Quan', 'Stephanie Hsu', 'Jamie Lee Curtis']
+  },
+  FEATURED_MOVIES[3],
+  {
+    _id: 'past-lives-2023',
+    title: 'Past Lives',
+    type: 'movie',
+    posterImg: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=800&auto=format&fit=crop',
+    rating: '4.8',
+    year: '2023',
+    ageRating: 'PG-13',
+    duration: '1h 45m',
+    quality: 'HD',
+    releaseDate: '2023',
+    genres: ['Drama', 'Romance'],
+    synopsis: 'Nora and Hae Sung, two deeply connected childhood friends, are wrested apart after Nora\'s family emigrates from South Korea. Decades later, they are reunited in New York for one fateful week as they confront notions of destiny, love, and the choices that make a life.',
+    trailerUrl: 'https://www.youtube.com/watch?v=kA244xewjcI',
+    directors: ['Celine Song'],
+    countries: ['United States', 'South Korea'],
+    casts: ['Greta Lee', 'Teo Yoo', 'John Magaro']
+  },
+  {
+    _id: 'barbie-2023',
+    title: 'Barbie',
+    type: 'movie',
+    posterImg: 'https://images.unsplash.com/photo-1563089145-599997674d42?q=80&w=800&auto=format&fit=crop',
+    rating: '4.2',
+    year: '2023',
+    ageRating: 'PG-13',
+    duration: '1h 54m',
+    quality: 'HD',
+    releaseDate: '2023',
+    genres: ['Adventure', 'Comedy', 'Fantasy'],
+    synopsis: 'Barbie and Ken are having the time of their lives in the colorful and seemingly perfect world of Barbie Land. However, when they get a chance to go to the real world, they soon discover the joys and perils of living among humans.',
+    trailerUrl: 'https://www.youtube.com/watch?v=pBk4NYhWNMM',
+    directors: ['Greta Gerwig'],
+    countries: ['United States'],
+    casts: ['Margot Robbie', 'Ryan Gosling', 'America Ferrera', 'Simu Liu']
+  }
+];
+
+export const INITIAL_LIBRARY_ITEMS: SavedMovieItem[] = [
+  {
+    _id: 'oppenheimer-2023',
+    title: 'Oppenheimer',
+    posterImg: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800&auto=format&fit=crop',
+    duration: '3h 0m',
+    progressPercent: 70,
+    completed: false,
+    savedAt: Date.now() - 3600000 * 2,
+    rating: '4.9',
+    genres: ['Biography', 'Drama']
+  },
+  {
+    _id: 'dune-part-two-2024',
+    title: 'Dune: Part Two',
+    posterImg: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=800&auto=format&fit=crop',
+    duration: '2h 48m',
+    progressPercent: 40,
+    completed: false,
+    savedAt: Date.now() - 3600000 * 6,
+    rating: '4.8',
+    genres: ['Sci-Fi', 'Adventure']
+  },
+  {
+    _id: 'blade-runner-2049-2017',
+    title: 'Blade Runner 2049',
+    posterImg: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop',
+    duration: '2h 44m',
+    progressPercent: 100,
+    completed: true,
+    savedAt: Date.now() - 3600000 * 24,
+    rating: '4.7',
+    genres: ['Sci-Fi', 'Mystery']
+  },
+  {
+    _id: 'poor-things-2023',
+    title: 'Poor Things',
+    posterImg: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=800&auto=format&fit=crop',
+    duration: '2h 21m',
+    progressPercent: 15,
+    completed: false,
+    savedAt: Date.now() - 3600000 * 48,
+    rating: '4.5',
+    genres: ['Comedy', 'Drama', 'Romance']
+  }
+];
+
+export const POPULAR_GENRES: GenreItem[] = [
+  { parameter: 'action', name: 'Action', numberOfContents: 350 },
+  { parameter: 'drama', name: 'Drama', numberOfContents: 420 },
+  { parameter: 'horror', name: 'Horror', numberOfContents: 180 },
+  { parameter: 'comedy', name: 'Comedy', numberOfContents: 290 },
+  { parameter: 'sci-fi', name: 'Sci-Fi', numberOfContents: 210 },
+  { parameter: 'romance', name: 'Romance', numberOfContents: 190 },
+  { parameter: 'adventure', name: 'Adventure', numberOfContents: 260 },
+  { parameter: 'animation', name: 'Animation', numberOfContents: 150 },
+  { parameter: 'thriller', name: 'Thriller', numberOfContents: 310 },
+];

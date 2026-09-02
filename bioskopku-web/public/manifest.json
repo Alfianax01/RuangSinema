@@ -1,0 +1,21 @@
+{
+  "short_name": "RuangSinema",
+  "name": "RuangSinema - Streaming Film & Series",
+  "icons": [
+    {
+      "src": "/app-icon.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192 512x512"
+    },
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#141414",
+  "theme_color": "#E50914",
+  "display": "standalone",
+  "orientation": "portrait"
+}
