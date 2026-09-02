@@ -3,6 +3,21 @@ import 'package:http/http.dart' as http;
 import '../models/movie.dart';
 
 class ApiService {
+  // 4. 📺 TV-API.COM (https://tv-api.com/api)
+  static const String tvApiBaseUrl = 'https://tv-api.com';
+
+  static Future<List<Movie>> fetchFromTvApi(String endpoint) async {
+    try {
+      final res = await http.get(Uri.parse('$tvApiBaseUrl/en/API/$endpoint/k_demo')).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final list = (data['items'] ?? data['results'] ?? []) as List;
+        return list.map((item) => mapItem(item, isTv: endpoint.contains('TV'))).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
   static const String tmdbApiKey = '4e44d9029b1270a757cddc766a1bcb63';
   static const String tmdbBaseUrl = 'https://api.themoviedb.org/3';
   static const String tmdbImgW500 = 'https://image.tmdb.org/t/p/w500';

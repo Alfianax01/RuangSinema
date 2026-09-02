@@ -1,3 +1,43 @@
+// 📺 TV-API.COM INTEGRATION (https://tv-api.com/api - Global TV & Movie Supplemental API)
+export const TV_API_BASE_URL = 'https://tv-api.com';
+
+export async function fetchFromTvApi(endpoint: string, apiKey = 'k_12345678'): Promise<Movie[]> {
+  try {
+    const url = `${TV_API_BASE_URL}/en/API/${endpoint}/${apiKey}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      const list = Array.isArray(data.items) ? data.items : (Array.isArray(data.results) ? data.results : []);
+      if (list.length > 0) {
+        return list.map((item: any, idx: number) => ({
+          _id: `tvapi-${item.id || idx}`,
+          title: item.title || item.name || 'Cinema Title',
+          type: item.type === 'TVSeries' || endpoint.includes('TV') ? 'series' : 'movie',
+          posterImg: item.image || 'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
+          backdropImg: item.image || 'https://image.tmdb.org/t/p/original/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
+          rating: String(item.imDbRating || item.rating || '8.5'),
+          year: String(item.year || '2024'),
+          ageRating: 'PG-13',
+          duration: item.runtimeStr || '2h',
+          quality: 'HD',
+          qualityResolution: '1080p FULL HD',
+          releaseDate: item.year ? `${item.year}-01-01` : '2024-01-01',
+          genres: ['TV Series', 'Popular', 'Sub Indo'],
+          synopsis: item.plot || item.description || 'Nonton film & series subtitle Indonesia terlengkap.',
+          trailerUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(item.title || 'Movie')}+trailer`,
+          directors: item.crew ? [item.crew] : ['Director'],
+          countries: ['International'],
+          casts: item.stars ? item.stars.split(', ') : ['Actor'],
+          isComingSoon: false,
+        }));
+      }
+    }
+  } catch (e) {
+    // Graceful fallback to primary TMDb engine
+  }
+  return [];
+}
+
 
 // ⚡ In-Memory High-Speed Cache (5 Minutes TTL) for 0ms Instant Navigation
 const apiResponseCache = new Map<string, { data: any; time: number }>();
