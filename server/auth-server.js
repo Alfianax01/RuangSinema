@@ -3,68 +3,27 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 const crypto = require('crypto');
+const mysql = require('mysql2/promise');
 
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
 const MAX_PAYLOAD_BYTES = 1024 * 1024; // 1 MB max payload
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 15; // Max 15 auth attempts / min
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const MAX_REQUESTS_PER_WINDOW = 30;
 
-// In-Memory Rate Limiter
-const ipRequestHistory = new Map();
+// MySQL Database Configuration (phpMyAdmin / Laragon / XAMPP / Remote Cloud MySQL)
+const DB_CONFIG = {
+  host: process.env.DB_HOST || '127.0.0.1',
+  port: parseInt(process.env.DB_PORT || '3306', 10),
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'bioskopku_db',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+};
 
-function isRateLimited(ip) {
-  const now = Date.now();
-  const history = ipRequestHistory.get(ip) || [];
-  const validHistory = history.filter(time => now - time < RATE_LIMIT_WINDOW_MS);
-  
-  if (validHistory.length >= MAX_REQUESTS_PER_WINDOW) {
-    ipRequestHistory.set(ip, validHistory);
-    return true;
-  }
-
-  validHistory.push(now);
-  ipRequestHistory.set(ip, validHistory);
-  return false;
-}
-
-// Clean up stale rate-limiting entries every 5 mins
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, history] of ipRequestHistory.entries()) {
-    const validHistory = history.filter(time => now - time < RATE_LIMIT_WINDOW_MS);
-    if (validHistory.length === 0) {
-      ipRequestHistory.delete(ip);
-    } else {
-      ipRequestHistory.set(ip, validHistory);
-    }
-  }
-}, 5 * 60 * 1000);
-
-// Cryptographic Password Hashing (PBKDF2 with SHA-512)
-function hashPassword(password, salt) {
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
-}
-
-function verifyPassword(password, salt, storedHash) {
-  const calculatedHash = hashPassword(password, salt);
-  try {
-    return crypto.timingSafeEqual(Buffer.from(calculatedHash, 'hex'), Buffer.from(storedHash, 'hex'));
-  } catch (e) {
-    return false;
-  }
-}
-
-// Input Sanitization
-function sanitizeString(str, maxLen = 50) {
-  if (typeof str !== 'string') return '';
-  return str.replace(/<[^>]*>?/gm, '').trim().substring(0, maxLen);
-}
-
-function isValidEmail(email) {
-  if (typeof email !== 'string') return false;
-  const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return re.test(email.trim()) && email.length <= 100;
-}
+let dbPool = null;
+let isDbConnected = false;
 
 // Fallback Persistent JSON Store
 const fallbackFile = path.join(__dirname, 'users_fallback.json');
@@ -85,17 +44,117 @@ function saveFallbackUsers(users) {
   } catch (e) {}
 }
 
-const server = http.createServer((req, res) => {
+// Initialize MySQL Database & Users Table automatically for phpMyAdmin
+async function initDatabase() {
+  try {
+    // 1. Connect to MySQL server
+    const rootConn = await mysql.createConnection({
+      host: DB_CONFIG.host,
+      port: DB_CONFIG.port,
+      user: DB_CONFIG.user,
+      password: DB_CONFIG.password,
+    });
+
+    await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+    await rootConn.end();
+
+    // 2. Connect pool to bioskopku_db
+    dbPool = mysql.createPool(DB_CONFIG);
+
+    // 3. Create users table for phpMyAdmin
+    await dbPool.query(`
+      CREATE TABLE IF NOT EXISTS \`users\` (
+        \`id\` BIGINT NOT NULL AUTO_INCREMENT,
+        \`name\` VARCHAR(100) NOT NULL,
+        \`email\` VARCHAR(150) NOT NULL UNIQUE,
+        \`password\` VARCHAR(255) NOT NULL,
+        \`salt\` VARCHAR(64) NULL,
+        \`genres\` TEXT NULL,
+        \`role\` VARCHAR(50) DEFAULT 'VIP Member',
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`id\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    isDbConnected = true;
+    console.log(`✅ [MySQL phpMyAdmin] Connected successfully to database "${DB_CONFIG.database}" on port ${DB_CONFIG.port}`);
+
+    // 4. Sync existing fallback users into MySQL if empty
+    const [rows] = await dbPool.query('SELECT COUNT(*) as count FROM users');
+    if (rows[0].count === 0) {
+      const fallbackList = getFallbackUsers();
+      for (const u of fallbackList) {
+        await dbPool.query(
+          'INSERT IGNORE INTO users (name, email, password, salt, genres, role) VALUES (?, ?, ?, ?, ?, ?)',
+          [u.name, u.email, u.passwordHash || u.password, u.salt || '', JSON.stringify(u.genres || []), u.role || 'VIP Member']
+        );
+      }
+      console.log(`🔄 [MySQL phpMyAdmin] Initialized ${fallbackList.length} seed users into MySQL database.`);
+    }
+  } catch (err) {
+    console.warn(`⚠️ [MySQL phpMyAdmin] Could not connect to MySQL at ${DB_CONFIG.host}:${DB_CONFIG.port} (${err.message}). Using persistent JSON fallback store.`);
+    isDbConnected = false;
+  }
+}
+
+initDatabase();
+
+// In-Memory Rate Limiter
+const ipRequestHistory = new Map();
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const history = ipRequestHistory.get(ip) || [];
+  const validHistory = history.filter(time => now - time < RATE_LIMIT_WINDOW_MS);
+  
+  if (validHistory.length >= MAX_REQUESTS_PER_WINDOW) {
+    ipRequestHistory.set(ip, validHistory);
+    return true;
+  }
+
+  validHistory.push(now);
+  ipRequestHistory.set(ip, validHistory);
+  return false;
+}
+
+// Password Hashing (PBKDF2 with SHA-512)
+function hashPassword(password, salt) {
+  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+}
+
+function verifyPassword(password, salt, storedHash) {
+  if (!salt) {
+    return password === storedHash;
+  }
+  const calculatedHash = hashPassword(password, salt);
+  try {
+    return crypto.timingSafeEqual(Buffer.from(calculatedHash, 'hex'), Buffer.from(storedHash, 'hex'));
+  } catch (e) {
+    return false;
+  }
+}
+
+function sanitizeString(str, maxLen = 50) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/<[^>]*>?/gm, '').trim().substring(0, maxLen);
+}
+
+function isValidEmail(email) {
+  if (typeof email !== 'string') return false;
+  const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return re.test(email.trim()) && email.length <= 100;
+}
+
+const server = http.createServer(async (req, res) => {
   const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
 
-  // Security Headers (OWASP Recommended)
+  // Security & CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -107,9 +166,8 @@ const server = http.createServer((req, res) => {
   const pathname = parsedUrl.pathname;
 
   if (req.method === 'POST') {
-    // Rate Limiting Check
     if (isRateLimited(clientIp)) {
-      res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '60' });
+      res.writeHead(429, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'error', message: 'Terlalu banyak permintaan. Silakan tunggu 1 menit.' }));
       return;
     }
@@ -128,7 +186,7 @@ const server = http.createServer((req, res) => {
       body += chunk.toString();
     });
 
-    req.on('end', () => {
+    req.on('end', async () => {
       let data = {};
       try {
         if (body) data = JSON.parse(body);
@@ -138,7 +196,7 @@ const server = http.createServer((req, res) => {
         return;
       }
 
-      // 1. REGISTER
+      // 1. REGISTER (Save to MySQL phpMyAdmin + Fallback)
       if (pathname === '/api/auth/register') {
         const rawName = data.name;
         const rawEmail = data.email;
@@ -159,51 +217,65 @@ const server = http.createServer((req, res) => {
           return;
         }
 
-        if (typeof rawPassword !== 'string' || rawPassword.length < 4 || rawPassword.length > 100) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ status: 'error', message: 'Kata sandi harus minimal 4 karakter dan maksimal 100 karakter.' }));
-          return;
-        }
-
-        const users = getFallbackUsers();
-        if (users.some(u => u.email === email)) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ status: 'error', message: 'Email sudah terdaftar. Silakan login.' }));
-          return;
-        }
-
-        // Generate Salt and Hash Password securely
         const salt = crypto.randomBytes(16).toString('hex');
         const passwordHash = hashPassword(rawPassword, salt);
+        let insertedId = Date.now();
 
-        const newUser = {
-          id: Date.now(),
-          name,
-          email,
-          salt,
-          passwordHash,
-          genres: [],
-          role: 'VIP Member',
-          created_at: new Date().toISOString()
-        };
+        // Check & Insert into MySQL
+        if (isDbConnected && dbPool) {
+          try {
+            const [existing] = await dbPool.query('SELECT id FROM users WHERE email = ?', [email]);
+            if (existing.length > 0) {
+              res.writeHead(409, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ status: 'error', message: 'Email sudah terdaftar. Silakan login.' }));
+              return;
+            }
 
-        users.push(newUser);
-        saveFallbackUsers(users);
+            const [result] = await dbPool.query(
+              'INSERT INTO users (name, email, password, salt, genres, role) VALUES (?, ?, ?, ?, ?, ?)',
+              [name, email, passwordHash, salt, JSON.stringify([]), 'VIP Member']
+            );
+            insertedId = result.insertId;
+            console.log(`✨ [MySQL phpMyAdmin] Inserted new user #${insertedId} (${email}) into table 'users'`);
+          } catch (dbErr) {
+            console.error('MySQL insert error:', dbErr.message);
+          }
+        }
+
+        // Also save to Fallback JSON
+        const fallbackUsers = getFallbackUsers();
+        if (!fallbackUsers.some(u => u.email === email)) {
+          fallbackUsers.push({
+            id: insertedId,
+            name,
+            email,
+            salt,
+            passwordHash,
+            genres: [],
+            role: 'VIP Member',
+            created_at: new Date().toISOString()
+          });
+          saveFallbackUsers(fallbackUsers);
+        }
 
         const userSafe = {
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          genres: newUser.genres,
-          role: newUser.role,
+          id: insertedId,
+          name,
+          email,
+          genres: [],
+          role: 'VIP Member',
         };
 
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'success', message: 'Registrasi berhasil!', user: userSafe }));
+        res.writeHead(201, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          status: 'success',
+          message: 'Registrasi VIP berhasil!',
+          user: userSafe,
+        }));
         return;
       }
 
-      // 2. LOGIN
+      // 2. LOGIN (Query from MySQL phpMyAdmin or Fallback)
       if (pathname === '/api/auth/login') {
         const rawEmail = data.email;
         const rawPassword = data.password;
@@ -215,84 +287,119 @@ const server = http.createServer((req, res) => {
         }
 
         const email = rawEmail.toLowerCase().trim();
-        const users = getFallbackUsers();
-        const found = users.find(u => u.email === email);
+        let userRecord = null;
 
-        if (!found) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ status: 'error', message: 'Email atau kata sandi tidak cocok.' }));
-          return;
+        // Try querying MySQL
+        if (isDbConnected && dbPool) {
+          try {
+            const [rows] = await dbPool.query('SELECT * FROM users WHERE email = ?', [email]);
+            if (rows.length > 0) {
+              userRecord = rows[0];
+            }
+          } catch (dbErr) {}
         }
 
-        // Verify Hash (Supports PBKDF2 hash & legacy transition)
-        let isMatch = false;
-        if (found.salt && found.passwordHash) {
-          isMatch = verifyPassword(rawPassword, found.salt, found.passwordHash);
-        } else if (found.password) {
-          // Upgrade legacy user password to secure hash
-          isMatch = (found.password === rawPassword);
-          if (isMatch) {
-            found.salt = crypto.randomBytes(16).toString('hex');
-            found.passwordHash = hashPassword(rawPassword, found.salt);
-            delete found.password;
-            saveFallbackUsers(users);
+        // Fallback to JSON store if not in MySQL
+        if (!userRecord) {
+          const fallbackUsers = getFallbackUsers();
+          const found = fallbackUsers.find(u => u.email === email);
+          if (found) {
+            userRecord = {
+              id: found.id,
+              name: found.name,
+              email: found.email,
+              password: found.passwordHash || found.password,
+              salt: found.salt,
+              genres: JSON.stringify(found.genres || []),
+              role: found.role || 'VIP Member'
+            };
           }
         }
 
-        if (!isMatch) {
+        if (!userRecord) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ status: 'error', message: 'Email atau kata sandi tidak cocok.' }));
+          res.end(JSON.stringify({ status: 'error', message: 'Email atau kata sandi salah.' }));
           return;
         }
 
+        const isValid = verifyPassword(rawPassword, userRecord.salt, userRecord.password);
+        if (!isValid) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'error', message: 'Email atau kata sandi salah.' }));
+          return;
+        }
+
+        let parsedGenres = [];
+        try {
+          parsedGenres = typeof userRecord.genres === 'string' ? JSON.parse(userRecord.genres) : (userRecord.genres || []);
+        } catch (e) {}
+
         const userSafe = {
-          id: found.id,
-          name: found.name,
-          email: found.email,
-          genres: found.genres || [],
-          role: found.role || 'VIP Member',
+          id: userRecord.id,
+          name: userRecord.name,
+          email: userRecord.email,
+          genres: parsedGenres,
+          role: userRecord.role || 'VIP Member',
         };
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'success', message: 'Login berhasil!', user: userSafe }));
+        res.end(JSON.stringify({
+          status: 'success',
+          message: 'Login berhasil! Selamat datang kembali.',
+          user: userSafe,
+        }));
         return;
       }
 
-      // 3. PREFERENCES
+      // 3. UPDATE PREFERENCES
       if (pathname === '/api/auth/preferences') {
-        const rawEmail = data.email;
-        const genres = data.genres;
+        const { email, genres } = data;
+        const cleanEmail = (email || '').toLowerCase().trim();
 
-        if (!rawEmail || !isValidEmail(rawEmail)) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ status: 'error', message: 'Email tidak valid.' }));
-          return;
-        }
+        if (cleanEmail && Array.isArray(genres)) {
+          if (isDbConnected && dbPool) {
+            try {
+              await dbPool.query('UPDATE users SET genres = ? WHERE email = ?', [JSON.stringify(genres), cleanEmail]);
+              console.log(`🎨 [MySQL phpMyAdmin] Updated genre preferences for user (${cleanEmail})`);
+            } catch (e) {}
+          }
 
-        const email = rawEmail.toLowerCase().trim();
-        const genresArray = Array.isArray(genres) ? genres.map(g => sanitizeString(String(g), 30)) : [];
-        const users = getFallbackUsers();
-        const idx = users.findIndex(u => u.email === email);
-
-        if (idx !== -1) {
-          users[idx].genres = genresArray;
-          saveFallbackUsers(users);
+          const fallbackUsers = getFallbackUsers();
+          const u = fallbackUsers.find(x => x.email === cleanEmail);
+          if (u) {
+            u.genres = genres;
+            saveFallbackUsers(fallbackUsers);
+          }
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'success', message: 'Preferensi genre disimpan!', genres: genresArray }));
+        res.end(JSON.stringify({ status: 'success', message: 'Preferensi berhasil disimpan.' }));
         return;
       }
 
       res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'error', message: 'Route tidak ditemukan.' }));
+      res.end(JSON.stringify({ status: 'error', message: 'Endpoint tidak ditemukan.' }));
     });
-  } else {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'success', message: 'RuangSinema Secure Auth Server Active', version: '2.0.0' }));
+    return;
   }
+
+  // GET /api/auth/health
+  if (pathname === '/api/auth/health' || pathname === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'ok',
+      service: 'RuangSinema Auth Server',
+      database: isDbConnected ? 'MySQL Connected (phpMyAdmin Ready)' : 'Persistent Fallback Mode',
+      timestamp: new Date().toISOString()
+    }));
+    return;
+  }
+
+  res.writeHead(404, { 'Content-Type': 'text/plain' });
+  res.end('RuangSinema Auth API Server');
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log('🛡️ RuangSinema Hardened Auth Server running on http://localhost:' + PORT);
+server.listen(PORT, () => {
+  console.log(`🛡️ RuangSinema Auth Server running on http://localhost:${PORT}`);
+  console.log(`📊 phpMyAdmin Database target: ${DB_CONFIG.user}@${DB_CONFIG.host}:${DB_CONFIG.port}/${DB_CONFIG.database}`);
 });
