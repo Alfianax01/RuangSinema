@@ -19,6 +19,23 @@
     <meta name="twitter:card" content="summary_large_image" />
 
     <title>RuangSinema — Streaming Film Bioskop, Drakor, Dracin & Anime</title>
+      <!-- Anti-Adware & Zero-Judol Protection Shield -->
+    <script>
+      (function() {
+        // Intercept and neutralize unauthorized popup windows
+        const originalOpen = window.open;
+        window.open = function(url, target, features) {
+          if (!url) return null;
+          const u = String(url).toLowerCase();
+          const isAllowed = u.includes('youtube.com') || u.includes('themoviedb.org') || u.includes('tmdb.org') || u.includes('ruangsinema') || u.includes('localhost');
+          if (!isAllowed) {
+            console.warn('[RuangSinema Shield] Blocked unauthorized ad / judol popup:', url);
+            return null;
+          }
+          return originalOpen.apply(this, arguments);
+        };
+      })();
+    </script>
   </head>
   <body class="bg-[#141414] text-white selection:bg-[#E50914] selection:text-white antialiased overflow-x-hidden">
     <div id="root"></div>

@@ -67,14 +67,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.black)
       ..setUserAgent('Mozilla/5.0 (Linux; Android 14; Mobile; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36')
-      ..setNavigationDelegate(
+            ..setNavigationDelegate(
         NavigationDelegate(
+          onNavigationRequest: (NavigationRequest request) {
+            final url = request.url.toLowerCase();
+            // Block all known ad networks, judol, slot, betting, and redirect traps
+            if (url.contains('slot') || 
+                url.contains('judi') || 
+                url.contains('bet') || 
+                url.contains('gacor') || 
+                url.contains('pop') || 
+                url.contains('adsterra') || 
+                url.contains('click') || 
+                url.contains('traffic') || 
+                url.contains('banner') || 
+                url.contains('doubleclick') ||
+                url.contains('redirect') ||
+                url.contains('apk') && !url.contains('ruangsinema')) {
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
           onPageStarted: (String url) {
             if (mounted) setState(() => _loading = true);
           },
           onPageFinished: (String url) {
             if (mounted) setState(() => _loading = false);
-            // Inject GPU Hardware Acceleration and AdBlock CSS
+            // Inject GPU Hardware Acceleration and Strict AdBlock CSS/JS
             _controller.runJavaScript('''
               (function() {
                 var style = document.createElement('style');
@@ -83,9 +102,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   video { width: 100% !important; height: 100% !important; object-fit: contain !important; }
                   iframe { border: 0 !important; width: 100% !important; height: 100% !important; }
                   body, html { background-color: #000 !important; overflow: hidden !important; }
-                  .ad, .ads, [id*="ad"], [class*="ad-"] { display: none !important; }
+                  .ad, .ads, [id*="ad"], [class*="ad-"], [class*="banner"], [id*="banner"], [href*="slot"], [href*="judi"] { display: none !important; pointer-events: none !important; }
                 `;
                 document.head.appendChild(style);
+
+                // Disable window.open inside iframe
+                window.open = function() { return null; };
               })();
             ''');
           },
@@ -94,17 +116,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           },
         ),
       );
-
-    // Direct GPU Compositing Mode on Android
-    if (_controller.platform is AndroidWebViewController) {
-      final androidController = _controller.platform as AndroidWebViewController;
-      androidController.setMediaPlaybackRequiresUserGesture(false);
-      androidController.setMixedContentMode(MixedContentMode.alwaysAllow);
-      androidController.setAllowFileAccess(true);
-      androidController.setAllowContentAccess(true);
-    }
-
-    _controller.loadRequest(Uri.parse(currentUrl));
   }
 
   void _switchSource(int index) {
