@@ -39,6 +39,33 @@ module.exports = async function handler(req, res) {
   const body = req.body || {};
 
   // 1. REGISTER
+    // GET /api/auth/users
+  if (req.method === 'GET' && pathname.includes('/users')) {
+    return res.status(200).json({ success: true, users: usersStore });
+  }
+
+  // POST /api/auth/sync
+  if (pathname.includes('/sync') || (req.method === 'POST' && body.action === 'sync')) {
+    const incoming = Array.isArray(body.users) ? body.users : (body.user ? [body.user] : []);
+    for (const u of incoming) {
+      const email = (u.email || '').toLowerCase().trim();
+      if (!email) continue;
+      if (!usersStore.some(x => x.email === email)) {
+        usersStore.push({
+          id: u.id || Date.now(),
+          name: u.name || 'VIP Member',
+          email,
+          genres: u.genres || [],
+          role: u.role || 'VIP Member',
+          created_at: new Date().toISOString(),
+          salt: u.salt || crypto.randomBytes(16).toString('hex'),
+          passwordHash: u.passwordHash || (u.password ? hashPassword(u.password, u.salt || 'salt') : hashPassword('123456', 'salt')),
+        });
+      }
+    }
+    return res.status(200).json({ success: true, count: usersStore.length });
+  }
+
   if (pathname.includes('/register') || (req.method === 'POST' && body.action === 'register')) {
     const { name, email, password } = body;
     if (!name || !email || !password) {

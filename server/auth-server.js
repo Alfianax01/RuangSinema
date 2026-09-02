@@ -399,6 +399,66 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+            // 5. SYNC FROM VERCEL / CLIENT TO MYSQL PHPMYADMIN
+      if (pathname === '/api/auth/sync') {
+        const incomingUsers = Array.isArray(data.users) ? data.users : (data.user ? [data.user] : (data.email ? [data] : []));
+        let syncedCount = 0;
+
+        for (const u of incomingUsers) {
+          const cleanEmail = (u.email || '').toLowerCase().trim();
+          if (!cleanEmail) continue;
+
+          const name = u.name || 'VIP Member';
+          const salt = u.salt || crypto.randomBytes(16).toString('hex');
+          const passwordHash = u.passwordHash || (u.password ? hashPassword(u.password, salt) : hashPassword('123456', salt));
+          const genres = JSON.stringify(u.genres || []);
+          const role = u.role || 'VIP Member';
+
+          if (isDbConnected && dbPool) {
+            try {
+              await dbPool.query(
+                `INSERT INTO users (name, email, password, salt, genres, role) 
+                 VALUES (?, ?, ?, ?, ?, ?) 
+                 ON DUPLICATE KEY UPDATE genres = VALUES(genres)`,
+                [name, cleanEmail, passwordHash, salt, genres, role]
+              );
+              syncedCount++;
+              console.log(`🔄 [MySQL phpMyAdmin] Synced user (${cleanEmail}) into table 'users'`);
+            } catch (dbErr) {
+              console.error('Sync MySQL Error:', dbErr.message);
+            }
+          }
+
+          // Also sync fallback JSON
+          const fallbackUsers = getFallbackUsers();
+          const existing = fallbackUsers.find(x => x.email === cleanEmail);
+          if (existing) {
+            existing.genres = u.genres || existing.genres;
+            if (u.passwordHash) existing.passwordHash = u.passwordHash;
+          } else {
+            fallbackUsers.push({
+              id: u.id || Date.now(),
+              name,
+              email: cleanEmail,
+              salt,
+              passwordHash,
+              genres: u.genres || [],
+              role,
+              created_at: new Date().toISOString()
+            });
+          }
+          saveFallbackUsers(fallbackUsers);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          status: 'success',
+          message: `Berhasil mensinkronkan ${syncedCount} akun ke MySQL phpMyAdmin!`,
+          syncedCount
+        }));
+        return;
+      }
+
       // 3. UPDATE PREFERENCES
       if (pathname === '/api/auth/preferences') {
         const { email, genres } = data;
@@ -428,6 +488,30 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'error', message: 'Endpoint tidak ditemukan.' }));
     });
+    return;
+  }
+
+    // GET /api/auth/users
+  if (pathname === '/api/auth/users') {
+    if (isDbConnected && dbPool) {
+      try {
+        const [rows] = await dbPool.query('SELECT id, name, email, genres, role, created_at FROM users ORDER BY id DESC');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'success', users: rows }));
+        return;
+      } catch (e) {}
+    }
+
+    const fallbackUsers = getFallbackUsers().map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      genres: u.genres,
+      role: u.role,
+      created_at: u.created_at
+    }));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'success', users: fallbackUsers }));
     return;
   }
 

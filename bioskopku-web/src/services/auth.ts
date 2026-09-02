@@ -1,3 +1,37 @@
+// 🔄 REAL-TIME AUTO SYNC TO LOCAL MYSQL PHPMYADMIN (127.0.0.1:5001)
+export async function pushUserToLocalMySQL(userData: any) {
+  try {
+    // Attempt background sync to local auth-server.js if available
+    fetch('http://localhost:5001/api/auth/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: userData }),
+      mode: 'cors',
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+export async function syncAllLocalUsersToMySQL() {
+  try {
+    const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
+    if (Array.isArray(localUsers) && localUsers.length > 0) {
+      fetch('http://localhost:5001/api/auth/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users: localUsers }),
+        mode: 'cors',
+      }).catch(() => {});
+    }
+  } catch (e) {}
+}
+
+// Automatically sync on initial load
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    syncAllLocalUsersToMySQL();
+  }, 1000);
+}
+
 import type { User } from '../types';
 
 // Dynamic API URL for Vercel Cloud & Local Dev
@@ -48,6 +82,7 @@ export async function loginUser(email: string, password: string): Promise<{ succ
       saveActiveUser(data.user);
       // Also cache in local users list for instant offline recovery
       syncLocalUser(data.user, password);
+      pushUserToLocalMySQL({ ...data.user, password });
       return { success: true, user: data.user, message: data.message || 'Login berhasil!' };
     }
     if (data.message) {
@@ -115,6 +150,7 @@ export async function registerUser(name: string, email: string, password: string
   const newUser = { id: Date.now(), name: name.trim(), email: cleanEmail, password, genres: [] };
   localUsers.push(newUser);
   localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
+  pushUserToLocalMySQL(newUser);
 
   const user: User = { id: newUser.id, name: newUser.name, email: newUser.email, genres: [] };
   return { success: true, user, message: 'Registrasi VIP berhasil!' };
