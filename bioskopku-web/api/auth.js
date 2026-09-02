@@ -27,178 +27,182 @@ function verifyPassword(password, salt, storedHash) {
   }
 }
 
-async function getRequestBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body;
-  if (req.body && typeof req.body === 'string') {
-    try { return JSON.parse(req.body); } catch (e) { return {}; }
-  }
-
-  return new Promise((resolve) => {
-    let raw = '';
-    req.on('data', chunk => { raw += chunk.toString(); });
-    req.on('end', () => {
-      try {
-        resolve(raw ? JSON.parse(raw) : {});
-      } catch (e) {
-        resolve({});
-      }
-    });
-    req.on('error', () => resolve({}));
-  });
-}
-
-function sendJson(res, statusCode, data) {
-  res.statusCode = statusCode;
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.end(JSON.stringify(data));
-}
-
 module.exports = async function handler(req, res) {
-  // CORS Headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  try {
+    // Set CORS Headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Content-Type', 'application/json');
 
-  if (req.method === 'OPTIONS') {
-    res.statusCode = 200;
-    res.end();
-    return;
-  }
-
-  const pathname = req.url || '';
-  const body = await getRequestBody(req);
-
-  // GET /api/auth/users
-  if (req.method === 'GET' && (pathname.includes('/users') || req.url?.includes('action=users'))) {
-    const safeUsers = memoryUsers.map(u => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      salt: u.salt,
-      passwordHash: u.passwordHash,
-      genres: u.genres || [],
-      role: u.role || 'VIP Member',
-      created_at: u.created_at
-    }));
-    return sendJson(res, 200, { success: true, users: safeUsers, count: safeUsers.length });
-  }
-
-  // 1. REGISTER
-  if (pathname.includes('/register') || (req.method === 'POST' && body.action === 'register')) {
-    const { name, email, password } = body;
-    if (!name || !email || !password) {
-      return sendJson(res, 400, { success: false, message: 'Nama, email, dan kata sandi wajib diisi.' });
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 200;
+      res.end();
+      return;
     }
 
-    const cleanEmail = email.toLowerCase().trim();
-    if (memoryUsers.some(u => u.email === cleanEmail)) {
-      return sendJson(res, 409, { success: false, message: 'Email sudah terdaftar. Silakan masuk.' });
+    const reqUrl = req.url || '';
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch (e) { body = {}; }
+    }
+    body = body || {};
+
+    // 1. GET ALL USERS (/api/auth/users or /api/auth?action=users)
+    if (req.method === 'GET') {
+      const safeUsers = memoryUsers.map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        salt: u.salt,
+        passwordHash: u.passwordHash,
+        genres: u.genres || [],
+        role: u.role || 'VIP Member',
+        created_at: u.created_at
+      }));
+      res.statusCode = 200;
+      res.end(JSON.stringify({ success: true, users: safeUsers, count: safeUsers.length }));
+      return;
     }
 
-    const salt = crypto.randomBytes(16).toString('hex');
-    const passwordHash = hashPassword(password, salt);
-
-    const newUser = {
-      id: Date.now(),
-      name: name.trim(),
-      email: cleanEmail,
-      salt,
-      passwordHash,
-      genres: [],
-      role: 'VIP Member',
-      created_at: new Date().toISOString()
-    };
-
-    memoryUsers.unshift(newUser);
-
-    return sendJson(res, 201, {
-      success: true,
-      message: 'Registrasi VIP berhasil!',
-      user: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        genres: newUser.genres,
-        role: newUser.role,
-        salt: newUser.salt,
-        passwordHash: newUser.passwordHash
+    // 2. REGISTER
+    if (reqUrl.includes('register') || body.action === 'register' || (!reqUrl.includes('login') && !reqUrl.includes('reset') && body.name)) {
+      const { name, email, password } = body;
+      if (!name || !email || !password) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: 'Nama, email, dan kata sandi wajib diisi.' }));
+        return;
       }
-    });
-  }
 
-  // 2. LOGIN
-  if (pathname.includes('/login') || (req.method === 'POST' && body.action === 'login')) {
-    const { email, password } = body;
-    if (!email || !password) {
-      return sendJson(res, 400, { success: false, message: 'Email dan kata sandi wajib diisi.' });
-    }
+      const cleanEmail = email.toLowerCase().trim();
+      if (memoryUsers.some(u => u.email === cleanEmail)) {
+        res.statusCode = 409;
+        res.end(JSON.stringify({ success: false, message: 'Email sudah terdaftar. Silakan masuk.' }));
+        return;
+      }
 
-    const cleanEmail = email.toLowerCase().trim();
-    let user = memoryUsers.find(u => u.email === cleanEmail);
-
-    if (!user && cleanEmail === 'azmialfian487@gmail.com') {
       const salt = crypto.randomBytes(16).toString('hex');
-      user = {
-        id: 1,
-        name: 'Alfian',
+      const passwordHash = hashPassword(password, salt);
+
+      const newUser = {
+        id: Date.now(),
+        name: String(name).trim(),
         email: cleanEmail,
         salt,
-        passwordHash: hashPassword(password, salt),
-        genres: ['Drakor', 'Series'],
-        role: 'Super Admin',
+        passwordHash,
+        genres: [],
+        role: 'VIP Member',
         created_at: new Date().toISOString()
       };
-      memoryUsers.push(user);
+
+      memoryUsers.unshift(newUser);
+
+      res.statusCode = 201;
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Registrasi VIP berhasil!',
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          genres: newUser.genres,
+          role: newUser.role,
+          salt: newUser.salt,
+          passwordHash: newUser.passwordHash
+        }
+      }));
+      return;
     }
 
-    if (!user) {
-      return sendJson(res, 401, { success: false, message: 'Email atau kata sandi salah.' });
-    }
-
-    const isValid = verifyPassword(password, user.salt, user.passwordHash);
-    if (!isValid) {
-      return sendJson(res, 401, { success: false, message: 'Email atau kata sandi salah.' });
-    }
-
-    return sendJson(res, 200, {
-      success: true,
-      message: 'Login berhasil!',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        genres: user.genres || [],
-        role: user.role || 'VIP Member'
+    // 3. LOGIN
+    if (reqUrl.includes('login') || body.action === 'login') {
+      const { email, password } = body;
+      if (!email || !password) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: 'Email dan kata sandi wajib diisi.' }));
+        return;
       }
-    });
-  }
 
-  // 3. RESET PASSWORD
-  if (pathname.includes('/reset-password') || (req.method === 'POST' && body.action === 'reset-password')) {
-    const { email, newPassword } = body;
-    if (!email || !newPassword) {
-      return sendJson(res, 400, { success: false, message: 'Email dan kata sandi baru wajib diisi.' });
+      const cleanEmail = email.toLowerCase().trim();
+      let user = memoryUsers.find(u => u.email === cleanEmail);
+
+      if (!user && cleanEmail === 'azmialfian487@gmail.com') {
+        const salt = crypto.randomBytes(16).toString('hex');
+        user = {
+          id: 1,
+          name: 'Alfian',
+          email: cleanEmail,
+          salt,
+          passwordHash: hashPassword(password, salt),
+          genres: ['Drakor', 'Series'],
+          role: 'Super Admin',
+          created_at: new Date().toISOString()
+        };
+        memoryUsers.push(user);
+      }
+
+      if (!user) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ success: false, message: 'Email atau kata sandi salah.' }));
+        return;
+      }
+
+      const isValid = verifyPassword(password, user.salt, user.passwordHash);
+      if (!isValid) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ success: false, message: 'Email atau kata sandi salah.' }));
+        return;
+      }
+
+      res.statusCode = 200;
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Login berhasil!',
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          genres: user.genres || [],
+          role: user.role || 'VIP Member'
+        }
+      }));
+      return;
     }
 
-    const cleanEmail = email.toLowerCase().trim();
-    const user = memoryUsers.find(u => u.email === cleanEmail);
+    // 4. RESET PASSWORD
+    if (reqUrl.includes('reset') || body.action === 'reset-password') {
+      const { email, newPassword } = body;
+      if (!email || !newPassword) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: 'Email dan kata sandi baru wajib diisi.' }));
+        return;
+      }
 
-    if (!user) {
-      return sendJson(res, 404, { success: false, message: 'Email tidak terdaftar.' });
+      const cleanEmail = email.toLowerCase().trim();
+      const user = memoryUsers.find(u => u.email === cleanEmail);
+
+      if (!user) {
+        res.statusCode = 404;
+        res.end(JSON.stringify({ success: false, message: 'Email tidak terdaftar.' }));
+        return;
+      }
+
+      const salt = crypto.randomBytes(16).toString('hex');
+      user.salt = salt;
+      user.passwordHash = hashPassword(newPassword, salt);
+
+      res.statusCode = 200;
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Kata sandi berhasil diperbarui! Silakan masuk dengan kata sandi baru Anda.'
+      }));
+      return;
     }
 
-    const salt = crypto.randomBytes(16).toString('hex');
-    user.salt = salt;
-    user.passwordHash = hashPassword(newPassword, salt);
-
-    return sendJson(res, 200, {
-      success: true,
-      message: 'Kata sandi berhasil diperbarui! Silakan masuk dengan kata sandi baru Anda.'
-    });
+    res.statusCode = 200;
+    res.end(JSON.stringify({ success: true, service: 'RuangSinema Cloud Auth API Online' }));
+  } catch (fatalError) {
+    res.statusCode = 500;
+    res.end(JSON.stringify({ success: false, error: fatalError.message, stack: fatalError.stack }));
   }
-
-  return sendJson(res, 200, { success: true, service: 'RuangSinema Cloud Auth API Online' });
 };
