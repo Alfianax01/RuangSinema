@@ -53,3 +53,43 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+
+/* 🚀 60 FPS ULTRA-SMOOTH HARDWARE ACCELERATION & VIRTUALIZATION */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  background-color: #111111;
+  overflow-x: hidden;
+  text-rendering: optimizeSpeed;
+}
+
+/* Off-screen card virtualization: skips rendering for elements out of viewport */
+.movie-card-container {
+  content-visibility: auto;
+  contain-intrinsic-size: 180px 280px;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* Hardware accelerated smooth horizontal carousels */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Optimize image decoding and rendering */
+img {
+  content-visibility: auto;
+}

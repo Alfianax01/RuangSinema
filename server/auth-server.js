@@ -535,3 +535,45 @@ server.listen(PORT, () => {
   console.log(`🛡️ RuangSinema Auth Server running on http://localhost:${PORT}`);
   console.log(`📊 phpMyAdmin Database target: ${DB_CONFIG.user}@${DB_CONFIG.host}:${DB_CONFIG.port}/${DB_CONFIG.database}`);
 });
+
+
+// 🌐 AUTOMATIC VERCEL CLOUD -> LOCAL PHPMYADMIN MYSQL AUTO-PULL ENGINE
+const VERCEL_USERS_API = 'https://ruang-sinema.vercel.app/api/auth/users';
+
+async function syncVercelUsersToLocalMySQL() {
+  if (!isDbConnected || !dbPool) return;
+
+  try {
+    const res = await fetch(VERCEL_USERS_API, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      const data = await res.json();
+      const users = data.users || [];
+      
+      for (const u of users) {
+        const cleanEmail = (u.email || '').toLowerCase().trim();
+        if (!cleanEmail) continue;
+
+        const name = u.name || 'VIP Member';
+        const salt = u.salt || crypto.randomBytes(16).toString('hex');
+        const passwordHash = u.passwordHash || (u.password ? hashPassword(u.password, salt) : hashPassword('123456', salt));
+        const genres = JSON.stringify(u.genres || []);
+        const role = u.role || 'VIP Member';
+
+        const [existing] = await dbPool.query('SELECT id FROM users WHERE email = ?', [cleanEmail]);
+        if (existing.length === 0) {
+          const [insertRes] = await dbPool.query(
+            `INSERT INTO users (name, email, password, salt, genres, role) VALUES (?, ?, ?, ?, ?, ?)`,
+            [name, cleanEmail, passwordHash, salt, genres, role]
+          );
+          console.log(`✨ [Auto-Sync Vercel -> MySQL] Inserted user (${cleanEmail}) into phpMyAdmin table 'users' (ID: ${insertRes.insertId})`);
+        }
+      }
+    }
+  } catch (e) {
+    // Silent fail if internet/Vercel is connecting
+  }
+}
+
+// Automatically poll Vercel Cloud every 5 seconds
+setInterval(syncVercelUsersToLocalMySQL, 3000);
+setTimeout(syncVercelUsersToLocalMySQL, 2000);

@@ -70,7 +70,7 @@ import type { Movie, MovieDetails, StreamSource, GenreItem, EpisodeItem, SeasonI
 const TMDB_API_KEY = '4e44d9029b1270a757cddc766a1bcb63';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMG_W500 = 'https://image.tmdb.org/t/p/w500';
-const TMDB_IMG_ORIGINAL = 'https://image.tmdb.org/t/p/w1280';
+const TMDB_IMG_ORIGINAL = 'https://image.tmdb.org/t/p/w780';
 
 const IDLIX_SLUG_MAP: Record<string, string> = {
   'dune-part-two-2024': '693134',
