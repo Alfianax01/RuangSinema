@@ -1,38 +1,9 @@
-// 🔄 REAL-TIME AUTO SYNC TO LOCAL MYSQL PHPMYADMIN (127.0.0.1:5001)
-export async function pushUserToLocalMySQL(userData: any) {
-  try {
-    // Attempt background sync to local auth-server.js if available
-    fetch('http://localhost:5001/api/auth/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user: userData }),
-      mode: 'cors',
-    }).catch(() => {});
-  } catch (e) {}
-}
-
-export async function syncAllLocalUsersToMySQL() {
-  try {
-    const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-    if (Array.isArray(localUsers) && localUsers.length > 0) {
-      fetch('http://localhost:5001/api/auth/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ users: localUsers }),
-        mode: 'cors',
-      }).catch(() => {});
-    }
-  } catch (e) {}
-}
-
-// Automatically sync on initial load
-if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    syncAllLocalUsersToMySQL();
-  }, 1000);
-}
-
 import type { User } from '../types';
+
+// Storage Keys
+const USER_KEY = 'bioskopku_active_user';
+const TOKEN_KEY = 'bioskopku_auth_token';
+const DEVICE_TOKEN_KEY = 'bioskopku_device_token';
 
 // Dynamic API URL for Vercel Cloud & Local Dev
 const getAuthApiUrl = () => {
@@ -45,9 +16,8 @@ const getAuthApiUrl = () => {
   return 'http://localhost:5001/api/auth';
 };
 
-const USER_KEY = 'bioskopku_active_user';
-
 export function getActiveUser(): User | null {
+  if (typeof window === 'undefined') return null;
   const cached = localStorage.getItem(USER_KEY);
   if (cached) {
     try {
@@ -58,66 +28,198 @@ export function getActiveUser(): User | null {
 }
 
 export function saveActiveUser(user: User): void {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  if (typeof window === 'undefined') return;
+  // Hapus semua field sensitif bila ada
+  const cleanUser: User = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    genres: user.genres || [],
+    role: user.role || 'VIP Member',
+    avatar: user.avatar
+  };
+  localStorage.setItem(USER_KEY, JSON.stringify(cleanUser));
 }
 
 export function removeActiveUser(): void {
+  if (typeof window === 'undefined') return;
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 }
 
-export async function loginUser(email: string, password: string): Promise<{ success: boolean; user?: User; message: string }> {
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function saveAuthToken(token: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function getDeviceToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(DEVICE_TOKEN_KEY);
+}
+
+export function saveDeviceToken(token: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(DEVICE_TOKEN_KEY, token);
+}
+
+// Bersihkan riwayat password plaintext lama bila ada di browser user
+if (typeof window !== 'undefined') {
+  try {
+    localStorage.removeItem('bioskopku_local_users');
+  } catch (e) {}
+}
+
+/**
+ * LOGIN USER
+ * ZERO BACKDOOR, ZERO PLAINTEXT PASSWORDS, DUKUNGAN 2FA
+ */
+export async function loginUser(
+  email: string,
+  password: string
+): Promise<{
+  success: boolean;
+  user?: User;
+  message: string;
+  mfa_required?: boolean;
+  mfa_type?: string;
+  mfa_token?: string;
+  locked?: boolean;
+  remainingMinutes?: number;
+}> {
   const cleanEmail = email.toLowerCase().trim();
   const authUrl = getAuthApiUrl();
+  const deviceToken = getDeviceToken();
 
   try {
     const res = await fetch(`${authUrl}/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: cleanEmail, password }),
-      signal: AbortSignal.timeout(4000),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(deviceToken ? { 'X-Device-Token': deviceToken } : {})
+      },
+      body: JSON.stringify({ email: cleanEmail, password, deviceToken }),
+      signal: AbortSignal.timeout(6000)
     });
 
     const data = await res.json();
+
+    // 1. Akun Terkunci (5x Gagal)
+    if (res.status === 423 || data.locked) {
+      return {
+        success: false,
+        locked: true,
+        remainingMinutes: data.remainingMinutes || 15,
+        message: data.message || 'Akun sementara dikunci karena 5 kali percobaan gagal.'
+      };
+    }
+
+    // 2. Butuh Verifikasi 2 Langkah (2FA)
+    if (data.mfa_required && data.mfa_token) {
+      return {
+        success: false,
+        mfa_required: true,
+        mfa_type: data.mfa_type || 'totp',
+        mfa_token: data.mfa_token,
+        message: data.message || 'Silakan masukkan kode autentikasi 2 langkah (2FA).'
+      };
+    }
+
+    // 3. Login Sukses
     if (res.ok && data.user) {
       saveActiveUser(data.user);
-      // Also cache in local users list for instant offline recovery
-      syncLocalUser(data.user, password);
-      pushUserToLocalMySQL({ ...data.user, password });
-      return { success: true, user: data.user, message: data.message || 'Login berhasil!' };
+      if (data.accessToken) {
+        saveAuthToken(data.accessToken);
+      }
+      return {
+        success: true,
+        user: data.user,
+        message: data.message || 'Login berhasil!'
+      };
     }
-    if (data.message) {
-      return { success: false, message: data.message };
-    }
-  } catch (err) {
-    // Seamless local fallback
-  }
 
-  // Fallback to local stored credentials
-  const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-  const found = localUsers.find((u: any) => u.email === cleanEmail && u.password === password);
-  if (found) {
-    const user: User = { id: found.id, name: found.name, email: found.email, genres: found.genres || [] };
-    saveActiveUser(user);
-    return { success: true, user, message: 'Login berhasil!' };
-  }
-
-  // Built-in Seed Admin / VIP User Recognition
-  if (cleanEmail === 'azmialfian487@gmail.com' || cleanEmail.includes('alfian')) {
-    const defaultUser: User = {
-      id: 1788153223537,
-      name: 'Alfian',
-      email: cleanEmail,
-      genres: ['Series', 'Drama Korea', 'Film Indonesia']
+    return {
+      success: false,
+      message: data.message || 'Email atau kata sandi salah.'
     };
-    saveActiveUser(defaultUser);
-    syncLocalUser(defaultUser, password);
-    return { success: true, user: defaultUser, message: 'Login VIP berhasil!' };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: 'Gagal terhubung ke server keamanan. Silakan periksa koneksi internet Anda.'
+    };
   }
-
-  return { success: false, message: 'Email atau password salah.' };
 }
 
-export async function registerUser(name: string, email: string, password: string): Promise<{ success: boolean; user?: User; message: string }> {
+/**
+ * VERIFIKASI KODE 2FA (MFA)
+ */
+export async function verifyMfaCode({
+  mfaToken,
+  code,
+  recoveryCode,
+  rememberDevice
+}: {
+  mfaToken: string;
+  code?: string;
+  recoveryCode?: string;
+  rememberDevice?: boolean;
+}): Promise<{ success: boolean; user?: User; message: string }> {
+  const authUrl = getAuthApiUrl();
+
+  try {
+    const res = await fetch(`${authUrl}/mfa/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mfa_token: mfaToken,
+        code,
+        recovery_code: recoveryCode,
+        remember_device: rememberDevice
+      }),
+      signal: AbortSignal.timeout(6000)
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.user) {
+      saveActiveUser(data.user);
+      if (data.accessToken) {
+        saveAuthToken(data.accessToken);
+      }
+      if (data.deviceToken) {
+        saveDeviceToken(data.deviceToken);
+      }
+      return {
+        success: true,
+        user: data.user,
+        message: data.message || 'Verifikasi 2 langkah berhasil!'
+      };
+    }
+
+    return {
+      success: false,
+      message: data.message || 'Kode verifikasi tidak valid atau telah kedaluwarsa.'
+    };
+  } catch (e: any) {
+    return {
+      success: false,
+      message: 'Terjadi gangguan jaringan saat verifikasi kode.'
+    };
+  }
+}
+
+/**
+ * REGISTER USER (Validasi Kuat di Server & Hashing PBKDF2 210k)
+ */
+export async function registerUser(
+  name: string,
+  email: string,
+  password: string
+): Promise<{ success: boolean; user?: User; message: string }> {
   const cleanEmail = email.toLowerCase().trim();
   const authUrl = getAuthApiUrl();
 
@@ -126,119 +228,137 @@ export async function registerUser(name: string, email: string, password: string
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name.trim(), email: cleanEmail, password }),
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(6000)
     });
 
     const data = await res.json();
+
     if (res.ok && data.user) {
-      // Synchronize credential locally for login verification
-      syncLocalUser(data.user, password);
-      return { success: true, user: data.user, message: data.message || 'Registrasi berhasil!' };
+      return {
+        success: true,
+        user: data.user,
+        message: data.message || 'Registrasi VIP berhasil!'
+      };
     }
-    if (data.message && res.status === 409) {
-      return { success: false, message: data.message };
-    }
-  } catch (err) {
-    // Seamless local registration
-  }
 
-  // Local persistent registration
-  const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-  if (localUsers.some((u: any) => u.email === cleanEmail)) {
-    return { success: false, message: 'Email sudah terdaftar. Silakan login.' };
+    return {
+      success: false,
+      message: data.message || 'Gagal mendaftarkan akun.'
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: 'Gagal terhubung ke server registrasi.'
+    };
   }
-  const newUser = { id: Date.now(), name: name.trim(), email: cleanEmail, password, genres: [] };
-  localUsers.push(newUser);
-  localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
-  pushUserToLocalMySQL(newUser);
-
-  const user: User = { id: newUser.id, name: newUser.name, email: newUser.email, genres: [] };
-  return { success: true, user, message: 'Registrasi VIP berhasil!' };
 }
 
-export async function saveUserPreferences(email: string, genres: string[]): Promise<boolean> {
+/**
+ * MINTA TOKEN RESET PASSWORD (15 Menit via Email)
+ */
+export async function requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = email.toLowerCase().trim();
+  const authUrl = getAuthApiUrl();
+
+  try {
+    const res = await fetch(`${authUrl}/reset-password/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail }),
+      signal: AbortSignal.timeout(5000)
+    });
+
+    const data = await res.json();
+    return {
+      success: true,
+      message: data.message || 'Jika email terdaftar, petunjuk pemulihan kata sandi telah dikirimkan.'
+    };
+  } catch (err) {
+    return {
+      success: true,
+      message: 'Jika email terdaftar, petunjuk pemulihan kata sandi telah dikirimkan.'
+    };
+  }
+}
+
+/**
+ * KONFIRMASI GANTI PASSWORD DENGAN TOKEN
+ */
+export async function confirmPasswordReset(
+  token: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> {
+  const authUrl = getAuthApiUrl();
+
+  try {
+    const res = await fetch(`${authUrl}/reset-password/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token.trim(), newPassword }),
+      signal: AbortSignal.timeout(5000)
+    });
+
+    const data = await res.json();
+    return {
+      success: res.ok && Boolean(data.success),
+      message: data.message || 'Kata sandi berhasil diperbarui.'
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: 'Terjadi gangguan koneksi saat mengubah kata sandi.'
+    };
+  }
+}
+
+/**
+ * SETUP MFA (TOTP)
+ */
+export async function setupMfa(): Promise<{ success: boolean; secret?: string; otpauthUrl?: string; recoveryCodes?: string[]; message?: string }> {
+  const authUrl = getAuthApiUrl();
+  const token = getAuthToken();
+
+  try {
+    const res = await fetch(`${authUrl}/mfa/setup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    return await res.json();
+  } catch (e: any) {
+    return { success: false, message: 'Gagal inisiasi 2FA.' };
+  }
+}
+
+/**
+ * AKTIFKAN MFA DENGAN 1 KODE VALID
+ */
+export async function enableMfa(code: string): Promise<{ success: boolean; message: string }> {
+  const authUrl = getAuthApiUrl();
+  const token = getAuthToken();
+
+  try {
+    const res = await fetch(`${authUrl}/mfa/enable`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ code })
+    });
+    return await res.json();
+  } catch (e: any) {
+    return { success: false, message: 'Gagal mengaktifkan 2FA.' };
+  }
+}
+
+export async function saveUserPreferences(_email: string, genres: string[]): Promise<boolean> {
   const active = getActiveUser();
   if (active) {
     active.genres = genres;
     saveActiveUser(active);
   }
-
-  try {
-    const authUrl = getAuthApiUrl();
-    await fetch(`${authUrl}/preferences`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, genres }),
-      signal: AbortSignal.timeout(3000),
-    });
-    return true;
-  } catch (e) {
-    return true;
-  }
-}
-
-function syncLocalUser(user: User, password?: string) {
-  try {
-    const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-    const idx = localUsers.findIndex((u: any) => u.email === user.email);
-    if (idx >= 0) {
-      localUsers[idx] = { ...localUsers[idx], ...user, password: password || localUsers[idx].password };
-    } else {
-      localUsers.push({ ...user, password: password || 'default' });
-    }
-    localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
-  } catch (e) {}
-}
-
-export async function resetUserPassword(email: string, newPassword: string): Promise<{ success: boolean; message: string }> {
-  const cleanEmail = email.toLowerCase().trim();
-  const authUrl = getAuthApiUrl();
-
-  try {
-    const res = await fetch(`${authUrl}/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: cleanEmail, newPassword }),
-      signal: AbortSignal.timeout(4000),
-    });
-
-    const data = await res.json();
-    if (res.ok && data.success) {
-      syncLocalUserPassword(cleanEmail, newPassword);
-      return { success: true, message: data.message || 'Kata sandi berhasil diperbarui!' };
-    }
-    if (data.message) {
-      return { success: false, message: data.message };
-    }
-  } catch (err) {}
-
-  // Local fallback reset
-  const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-  const user = localUsers.find((u: any) => u.email === cleanEmail);
-  if (user) {
-    user.password = newPassword;
-    localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
-    return { success: true, message: 'Kata sandi berhasil diperbarui secara lokal!' };
-  }
-
-  // If root admin account
-  if (cleanEmail === 'azmialfian487@gmail.com') {
-    syncLocalUserPassword(cleanEmail, newPassword);
-    return { success: true, message: 'Kata sandi akun admin berhasil diperbarui!' };
-  }
-
-  return { success: false, message: 'Email tidak ditemukan.' };
-}
-
-function syncLocalUserPassword(email: string, newPassword: string) {
-  try {
-    const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-    const idx = localUsers.findIndex((u: any) => u.email === email);
-    if (idx >= 0) {
-      localUsers[idx].password = newPassword;
-    } else {
-      localUsers.push({ id: Date.now(), name: 'VIP Member', email, password: newPassword, genres: [] });
-    }
-    localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
-  } catch (e) {}
+  return true;
 }

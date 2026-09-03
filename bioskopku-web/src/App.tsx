@@ -21,6 +21,7 @@ import { BottomNav } from './components/BottomNav';
 import { VideoPlayerModal } from './components/VideoPlayerModal';
 import { GenrePreferenceModal } from './components/GenrePreferenceModal';
 import { AddToPlaylistModal } from './components/AddToPlaylistModal';
+import { SecurityDashboardModal } from './components/SecurityDashboardModal';
 
 import { AuthScreen } from './pages/AuthScreen';
 import { HomeScreen } from './pages/HomeScreen';
@@ -32,6 +33,7 @@ import { ProfileScreen } from './pages/ProfileScreen';
 export function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => getActiveUser());
   const [showGenreModal, setShowGenreModal] = useState(false);
+  const [showSecurityDashboard, setShowSecurityDashboard] = useState(false);
 
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [activeCategory, setActiveCategory] = useState<string>('home');
@@ -495,6 +497,7 @@ export function App() {
             <ProfileScreen 
               user={currentUser}
               onOpenGenrePreferences={() => setShowGenreModal(true)}
+              onOpenSecurityDashboard={() => setShowSecurityDashboard(true)}
               onLogout={handleLogout}
             />
           )}
@@ -552,6 +555,11 @@ export function App() {
           isOpen={showGenreModal}
           user={currentUser}
           onCompleted={handleGenreSelectionCompleted}
+        />
+
+        <SecurityDashboardModal
+          isOpen={showSecurityDashboard}
+          onClose={() => setShowSecurityDashboard(false)}
         />
 
         {toastMessage && (

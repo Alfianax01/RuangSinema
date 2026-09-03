@@ -1,38 +1,23 @@
 -- =================================================================
--- Database Schema: bioskopku_db
--- RuangSinema — Modern Indonesian & Asian Cinema Streaming
--- Versi Keamanan: Grade A+ Hardened
+-- Migrasi 001: Pengerasan Autentikasi & Tabel Audit Keamanan
+-- Tanggal: 2026-09-03
 -- =================================================================
 
-CREATE DATABASE IF NOT EXISTS `bioskopku_db` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE `bioskopku_db`;
 
--- 1. Table: users
-CREATE TABLE IF NOT EXISTS `users` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(100) NOT NULL,
-  `email` VARCHAR(150) NOT NULL UNIQUE,
-  `password` VARCHAR(255) NOT NULL,
-  `password_hash` VARCHAR(255) NULL,
-  `password_algo` VARCHAR(30) DEFAULT 'pbkdf2_sha512',
-  `salt` VARCHAR(64) NULL,
-  `genres` TEXT NULL,
-  `avatar` VARCHAR(255) NULL,
-  `role` VARCHAR(50) DEFAULT 'VIP Member',
-  `mfa_enabled` TINYINT(1) DEFAULT 0,
-  `mfa_type` VARCHAR(20) DEFAULT 'totp',
-  `mfa_secret_enc` TEXT NULL,
-  `failed_attempts` INT DEFAULT 0,
-  `locked_until` TIMESTAMP NULL,
-  `last_login_at` TIMESTAMP NULL,
-  `last_login_ip` VARCHAR(64) NULL,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `idx_email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- 1. Tambah Kolom Keamanan pada Tabel users
+ALTER TABLE `users`
+  ADD COLUMN IF NOT EXISTS `password_hash` VARCHAR(255) NULL AFTER `password`,
+  ADD COLUMN IF NOT EXISTS `password_algo` VARCHAR(30) DEFAULT 'pbkdf2_sha512' AFTER `password_hash`,
+  ADD COLUMN IF NOT EXISTS `mfa_enabled` TINYINT(1) DEFAULT 0 AFTER `role`,
+  ADD COLUMN IF NOT EXISTS `mfa_type` VARCHAR(20) DEFAULT 'totp' AFTER `mfa_enabled`,
+  ADD COLUMN IF NOT EXISTS `mfa_secret_enc` TEXT NULL AFTER `mfa_type`,
+  ADD COLUMN IF NOT EXISTS `failed_attempts` INT DEFAULT 0 AFTER `mfa_secret_enc`,
+  ADD COLUMN IF NOT EXISTS `locked_until` TIMESTAMP NULL AFTER `failed_attempts`,
+  ADD COLUMN IF NOT EXISTS `last_login_at` TIMESTAMP NULL AFTER `locked_until`,
+  ADD COLUMN IF NOT EXISTS `last_login_ip` VARCHAR(64) NULL AFTER `last_login_at`;
 
--- 2. Table: login_attempts (Catatan Percobaan Login & Analitik Brute-Force)
+-- 2. Tabel Catatan Percobaan Login (login_attempts)
 CREATE TABLE IF NOT EXISTS `login_attempts` (
   `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
   `email` VARCHAR(150) NOT NULL,
@@ -54,13 +39,13 @@ CREATE TABLE IF NOT EXISTS `login_attempts` (
   INDEX `idx_ip_created` (`ip_address`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 3. Table: security_events (Audit Log & Feed Real-time untuk Dashboard Admin)
+-- 3. Tabel Event Keamanan & Audit Log Real-time (security_events)
 CREATE TABLE IF NOT EXISTS `security_events` (
   `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
   `user_id` BIGINT NULL,
   `email` VARCHAR(150) NOT NULL,
-  `type` VARCHAR(50) NOT NULL,
-  `severity` VARCHAR(20) DEFAULT 'warning',
+  `type` VARCHAR(50) NOT NULL, -- 'login_blocked', 'mfa_failed', 'new_device_login', 'password_changed', 'token_revoked'
+  `severity` VARCHAR(20) DEFAULT 'warning', -- 'info', 'warning', 'critical'
   `ip_address` VARCHAR(64) NOT NULL,
   `country` VARCHAR(100) NULL,
   `region` VARCHAR(100) NULL,
@@ -75,7 +60,7 @@ CREATE TABLE IF NOT EXISTS `security_events` (
   INDEX `idx_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4. Table: mfa_recovery_codes (Kode Pemulihan 2FA Sekali Pakai)
+-- 4. Tabel Kode Pemulihan 2FA Sekali Pakai (mfa_recovery_codes)
 CREATE TABLE IF NOT EXISTS `mfa_recovery_codes` (
   `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
   `user_id` BIGINT NOT NULL,
@@ -85,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `mfa_recovery_codes` (
   INDEX `idx_user_code` (`user_id`, `code_hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5. Table: trusted_devices (Perangkat Terpercaya Selama 30 Hari)
+-- 5. Tabel Perangkat Terpercaya (trusted_devices - 30 Hari)
 CREATE TABLE IF NOT EXISTS `trusted_devices` (
   `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
   `user_id` BIGINT NOT NULL,
@@ -99,7 +84,7 @@ CREATE TABLE IF NOT EXISTS `trusted_devices` (
   INDEX `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 6. Table: refresh_tokens (Refresh Token Sesi yang Dapat Dicabut)
+-- 6. Tabel Refresh Tokens (refresh_tokens - Hashed & Revocable)
 CREATE TABLE IF NOT EXISTS `refresh_tokens` (
   `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
   `user_id` BIGINT NOT NULL,
@@ -112,7 +97,7 @@ CREATE TABLE IF NOT EXISTS `refresh_tokens` (
   INDEX `idx_user_tokens` (`user_id`, `revoked_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. Table: ip_blocklist (Daftar Blokir IP Terlarang)
+-- 7. Tabel Daftar Blokir IP (ip_blocklist)
 CREATE TABLE IF NOT EXISTS `ip_blocklist` (
   `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
   `ip_address` VARCHAR(64) NOT NULL UNIQUE,
@@ -123,7 +108,7 @@ CREATE TABLE IF NOT EXISTS `ip_blocklist` (
   INDEX `idx_ip` (`ip_address`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 8. Table: password_reset_tokens (Token Reset Password 15 Menit)
+-- 8. Tabel Token Reset Password (password_reset_tokens - Single-use, 15m)
 CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
   `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
   `user_id` BIGINT NOT NULL,

@@ -50,6 +50,14 @@
       "destination": "/api/auth"
     },
     {
+      "source": "/api/security/(.*)",
+      "destination": "/api/security"
+    },
+    {
+      "source": "/api/security",
+      "destination": "/api/security"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

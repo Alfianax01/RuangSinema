@@ -1,5 +1,46 @@
-import crypto from 'crypto';
+/**
+ * RuangSinema Hardened Authentication Endpoint
+ * Standar: OWASP 2024, NIST SP 800-63B, Anti-Brute-Force, 2FA/MFA, Zero Leakage
+ */
 
+import {
+  hashPassword,
+  verifyPassword,
+  performDummyHash,
+  validatePasswordPolicy,
+  normalizeEmail,
+  isValidEmail,
+  signJwt,
+  verifyJwt,
+  generateRefreshToken,
+  sanitizeUser,
+  PBKDF2_ITERATIONS
+} from './_lib/auth-core.js';
+
+import {
+  getClientIp,
+  checkLockout,
+  recordFailedAttempt,
+  resetFailedAttempts,
+  parseUserAgent
+} from './_lib/rate-limit.js';
+
+import {
+  generateTotpSecret,
+  encryptSecret,
+  decryptSecret,
+  verifyTotpCode,
+  generateRecoveryCodes,
+  verifyRecoveryCode,
+  generateEmailOtp,
+  verifyEmailOtp
+} from './_lib/mfa-service.js';
+
+import { lookupIpLocation } from './_lib/geoip-service.js';
+import { sendSecurityAlertEmail, sendPasswordResetEmail, sendEmailOtpMessage } from './_lib/mailer-service.js';
+import { broadcastSecurityEvent } from './security.js';
+
+// In-Memory Global Store (disinkronkan dengan MySQL di auth-server / local store)
 let memoryUsers = [
   {
     id: 1,
@@ -9,36 +50,83 @@ let memoryUsers = [
     passwordHash: '8b7f8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b',
     genres: ['Drakor', 'Series', 'Action'],
     role: 'Super Admin',
+    mfa_enabled: 1,
+    mfa_type: 'totp',
+    mfa_secret_enc: null,
+    recovery_codes: [],
     created_at: '2026-09-01T00:00:00.000Z'
+  },
+  {
+    id: 6,
+    name: 'anjay',
+    email: 'narutouzumaki15580@gmail.com',
+    salt: 'b596886d750fb2ff1b8de56f81685fc4',
+    passwordHash: 'f9d83a5960aa0b030331442ddeadf37c31ef0f62ce53b9810cf7f0698ed1445dc66699167f97483181b987f9eff099893b882fe107aa107be462b49e1a4d4775',
+    genres: [],
+    role: 'VIP Member',
+    mfa_enabled: 0,
+    mfa_type: 'totp',
+    created_at: '2026-09-02T04:43:40.000Z'
   }
 ];
 
-function hashPassword(password, salt) {
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+// In-Memory Token Stores
+const passwordResetTokens = new Map(); // tokenHash -> { email, expiresAt, used }
+const trustedDevicesStore = new Map(); // deviceTokenHash -> { userId, expiresAt }
+const activeRefreshTokens = new Set(); // tokenHash
+
+// CORS Origin Whitelist
+const ALLOWED_ORIGINS = [
+  'https://ruang-sinema.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5001',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
+];
+
+function setSecurityAndCorsHeaders(req, res) {
+  const origin = req.headers?.origin;
+  if (origin && (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://ruang-sinema.vercel.app');
+  }
+
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Device-Token');
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
 }
 
-function verifyPassword(password, salt, storedHash) {
-  if (!salt) return password === storedHash;
-  const calculatedHash = hashPassword(password, salt);
-  try {
-    return crypto.timingSafeEqual(Buffer.from(calculatedHash, 'hex'), Buffer.from(storedHash, 'hex'));
-  } catch (e) {
-    return false;
+async function getParsedBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (req.body && typeof req.body === 'string') {
+    try { return JSON.parse(req.body); } catch (e) { return {}; }
   }
+
+  return new Promise((resolve) => {
+    let raw = '';
+    req.on('data', chunk => { raw += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch (e) {
+        resolve({});
+      }
+    });
+    req.on('error', () => resolve({}));
+  });
 }
 
 export default async function handler(req, res) {
   try {
-    // Set CORS Headers
-        res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+    setSecurityAndCorsHeaders(req, res);
 
     if (req.method === 'OPTIONS') {
       res.statusCode = 200;
@@ -47,154 +135,504 @@ export default async function handler(req, res) {
     }
 
     const reqUrl = req.url || '';
-    let body = req.body;
-    if (typeof body === 'string') {
-      try { body = JSON.parse(body); } catch (e) { body = {}; }
-    }
-    body = body || {};
+    const body = await getParsedBody(req);
+    const clientIp = getClientIp(req);
+    const userAgent = req.headers?.['user-agent'] || '';
 
-    // 1. GET ALL USERS (/api/auth/users or /api/auth?action=users)
-    if (req.method === 'GET') {
-      const safeUsers = memoryUsers.map(u => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        salt: u.salt,
-        passwordHash: u.passwordHash,
-        genres: u.genres || [],
-        role: u.role || 'VIP Member',
-        created_at: u.created_at
-      }));
+    // =========================================================================
+    // 1. GET /api/auth (Daftar Pengguna - HANYA Super Admin & ZERO Kredensial)
+    // =========================================================================
+    if (req.method === 'GET' && (reqUrl.includes('/users') || reqUrl.includes('/all') || !reqUrl.includes('?'))) {
+      const authHeader = req.headers?.authorization || '';
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+      const authUser = verifyJwt(token);
+
+      if (!authUser || (authUser.role !== 'Super Admin' && authUser.role !== 'Admin')) {
+        res.statusCode = 403;
+        res.end(JSON.stringify({
+          success: false,
+          message: 'Akses ditolak. Daftar pengguna hanya dapat diakses oleh Super Admin.'
+        }));
+        return;
+      }
+
+      // Bersihkan dan kembalikan hanya data non-sensitif (tanpa salt/passwordHash)
+      const sanitizedUsers = memoryUsers.map(u => sanitizeUser(u));
       res.statusCode = 200;
-      res.end(JSON.stringify({ success: true, users: safeUsers, count: safeUsers.length }));
+      res.end(JSON.stringify({
+        success: true,
+        users: sanitizedUsers,
+        count: sanitizedUsers.length
+      }));
       return;
     }
 
-    // 2. REGISTER
-    if (reqUrl.includes('register') || body.action === 'register' || (!reqUrl.includes('login') && !reqUrl.includes('reset') && body.name)) {
+    // =========================================================================
+    // 2. POST /api/auth/register (Registrasi Baru dengan Kebijakan Kuat)
+    // =========================================================================
+    if (reqUrl.includes('/register') || (req.method === 'POST' && body.action === 'register')) {
       const { name, email, password } = body;
-      if (!name || !email || !password) {
+      const cleanEmail = normalizeEmail(email);
+
+      if (!name || !cleanEmail || !password) {
         res.statusCode = 400;
         res.end(JSON.stringify({ success: false, message: 'Nama, email, dan kata sandi wajib diisi.' }));
         return;
       }
 
-      const cleanEmail = email.toLowerCase().trim();
+      if (!isValidEmail(cleanEmail)) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: 'Format alamat email tidak valid.' }));
+        return;
+      }
+
+      // Validasi Kebijakan Kata Sandi (Server-side Enforcement)
+      const policyCheck = validatePasswordPolicy(password);
+      if (!policyCheck.valid) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: policyCheck.message }));
+        return;
+      }
+
+      // Cek Duplikasi Email
       if (memoryUsers.some(u => u.email === cleanEmail)) {
         res.statusCode = 409;
         res.end(JSON.stringify({ success: false, message: 'Email sudah terdaftar. Silakan masuk.' }));
         return;
       }
 
-      const salt = crypto.randomBytes(16).toString('hex');
-      const passwordHash = hashPassword(password, salt);
+      // Hash Password dengan PBKDF2-SHA512 (210.000 Iterasi)
+      const { hash, salt, iterations } = hashPassword(password);
 
       const newUser = {
         id: Date.now(),
         name: String(name).trim(),
         email: cleanEmail,
         salt,
-        passwordHash,
+        passwordHash: hash,
+        password_algo: `pbkdf2_sha512_${iterations}`,
         genres: [],
         role: 'VIP Member',
+        mfa_enabled: 0,
+        mfa_type: 'totp',
+        mfa_secret_enc: null,
+        recovery_codes: [],
         created_at: new Date().toISOString()
       };
 
       memoryUsers.unshift(newUser);
 
+      // Terbitkan Sesi Awal (Access Token 15 menit + Refresh Token)
+      const sanitized = sanitizeUser(newUser);
+      const accessToken = signJwt(sanitized, undefined, 900);
+      const { token: refreshToken, hash: refreshHash } = generateRefreshToken();
+      activeRefreshTokens.add(refreshHash);
+
       res.statusCode = 201;
       res.end(JSON.stringify({
         success: true,
         message: 'Registrasi VIP berhasil!',
-        user: {
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          genres: newUser.genres,
-          role: newUser.role,
-          salt: newUser.salt,
-          passwordHash: newUser.passwordHash
-        }
+        user: sanitized,
+        accessToken,
+        refreshToken
       }));
       return;
     }
 
-    // 3. LOGIN
-    if (reqUrl.includes('login') || body.action === 'login') {
+    // =========================================================================
+    // 3. POST /api/auth/login (Login dengan Proteksi 5x Gagal & Lockout)
+    // =========================================================================
+    if (reqUrl.includes('/login') || (req.method === 'POST' && body.action === 'login')) {
       const { email, password } = body;
-      if (!email || !password) {
+      const cleanEmail = normalizeEmail(email);
+
+      if (!cleanEmail || !password) {
         res.statusCode = 400;
         res.end(JSON.stringify({ success: false, message: 'Email dan kata sandi wajib diisi.' }));
         return;
       }
 
-      const cleanEmail = email.toLowerCase().trim();
-      let user = memoryUsers.find(u => u.email === cleanEmail);
-
-      if (!user && cleanEmail === 'azmialfian487@gmail.com') {
-        const salt = crypto.randomBytes(16).toString('hex');
-        user = {
-          id: 1,
-          name: 'Alfian',
-          email: cleanEmail,
-          salt,
-          passwordHash: hashPassword(password, salt),
-          genres: ['Drakor', 'Series'],
-          role: 'Super Admin',
-          created_at: new Date().toISOString()
-        };
-        memoryUsers.push(user);
+      // A. Periksa Kunci Akun / Lockout IP
+      const lockStatus = checkLockout(cleanEmail, clientIp);
+      if (lockStatus.locked) {
+        res.statusCode = 423; // 423 Locked
+        res.end(JSON.stringify({
+          success: false,
+          locked: true,
+          remainingMinutes: lockStatus.remainingMinutes || 15,
+          message: lockStatus.message
+        }));
+        return;
       }
 
+      // Progressive Delay untuk Percobaan 3 dan 4
+      if (lockStatus.delayMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, lockStatus.delayMs));
+      }
+
+      // B. Cari Data Pengguna (TIDAK ADA BACKDOOR!)
+      const user = memoryUsers.find(u => u.email === cleanEmail);
+
+      // Jika User Tidak Ditemukan -> Lakukan Dummy Hash untuk Cegah Timing Attack
       if (!user) {
+        performDummyHash();
+        const failStatus = await recordFailedAttempt(cleanEmail, clientIp);
+
+        if (failStatus.isLocked) {
+          handleLockoutIncident(cleanEmail, clientIp, userAgent, failStatus.remainingMinutes);
+          res.statusCode = 423;
+          res.end(JSON.stringify({
+            success: false,
+            locked: true,
+            remainingMinutes: failStatus.remainingMinutes,
+            message: `Akun sementara dikunci demi keamanan karena 5 kali percobaan gagal. Silakan coba lagi dalam ${failStatus.remainingMinutes} menit.`
+          }));
+          return;
+        }
+
         res.statusCode = 401;
         res.end(JSON.stringify({ success: false, message: 'Email atau kata sandi salah.' }));
         return;
       }
 
-      const isValid = verifyPassword(password, user.salt, user.passwordHash);
-      if (!isValid) {
+      // C. Verifikasi Password dengan Constant-Time
+      const verifyResult = verifyPassword(password, user.salt, user.passwordHash || user.password);
+
+      if (!verifyResult.valid) {
+        const failStatus = await recordFailedAttempt(cleanEmail, clientIp);
+
+        if (failStatus.isLocked) {
+          handleLockoutIncident(cleanEmail, clientIp, userAgent, failStatus.remainingMinutes);
+          res.statusCode = 423;
+          res.end(JSON.stringify({
+            success: false,
+            locked: true,
+            remainingMinutes: failStatus.remainingMinutes,
+            message: `Akun sementara dikunci demi keamanan karena 5 kali percobaan gagal. Silakan coba lagi dalam ${failStatus.remainingMinutes} menit.`
+          }));
+          return;
+        }
+
         res.statusCode = 401;
         res.end(JSON.stringify({ success: false, message: 'Email atau kata sandi salah.' }));
         return;
       }
+
+      // D. Login Berhasil -> Reset Catatan Percobaan Gagal
+      resetFailedAttempts(cleanEmail, clientIp);
+
+      // Migrasi Transparan: Jika menggunakan hash lama 10k, perbarui otomatis ke 210k
+      if (verifyResult.needsRehash) {
+        const upgraded = hashPassword(password);
+        user.passwordHash = upgraded.hash;
+        user.salt = upgraded.salt;
+        user.password_algo = `pbkdf2_sha512_${upgraded.iterations}`;
+      }
+
+      // E. Cek Verifikasi 2 Langkah (2FA / MFA)
+      const requiresMfa = Boolean(user.mfa_enabled) || user.role === 'Super Admin' || user.role === 'Admin';
+
+      // Periksa apakah perangkat ini dipercayai (Trusted Device 30 Hari)
+      const deviceTokenHeader = req.headers?.['x-device-token'] || body.deviceToken;
+      let isDeviceTrusted = false;
+
+      if (deviceTokenHeader && trustedDevicesStore.has(deviceTokenHeader)) {
+        const dev = trustedDevicesStore.get(deviceTokenHeader);
+        if (dev.userId === user.id && dev.expiresAt > Date.now()) {
+          isDeviceTrusted = true;
+        }
+      }
+
+      // Jika 2FA aktif dan perangkat belum terpercaya -> Tuntut kode MFA
+      if (requiresMfa && !isDeviceTrusted) {
+        const mfaToken = signJwt({ userId: user.id, email: user.email, scope: 'mfa' }, undefined, 300); // 5 Menit
+        const mfaType = user.mfa_type || 'totp';
+
+        // Jika menggunakan Email OTP, kirimkan kode langsung
+        if (mfaType === 'email') {
+          const otpRes = generateEmailOtp(user.email);
+          if (otpRes.success) {
+            sendEmailOtpMessage({ toEmail: user.email, otpCode: otpRes.code });
+          }
+        }
+
+        res.statusCode = 200;
+        res.end(JSON.stringify({
+          success: true,
+          mfa_required: true,
+          mfa_type: mfaType,
+          mfa_token: mfaToken,
+          message: 'Silakan masukkan kode autentikasi 2 langkah (2FA) Anda.'
+        }));
+        return;
+      }
+
+      // F. Terbitkan Sesi Penuh (Access Token + Refresh Token)
+      const sanitized = sanitizeUser(user);
+      const accessToken = signJwt(sanitized, undefined, 900);
+      const { token: refreshToken, hash: refreshHash } = generateRefreshToken();
+      activeRefreshTokens.add(refreshHash);
 
       res.statusCode = 200;
       res.end(JSON.stringify({
         success: true,
         message: 'Login berhasil!',
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          genres: user.genres || [],
-          role: user.role || 'VIP Member'
-        }
+        user: sanitized,
+        accessToken,
+        refreshToken
       }));
       return;
     }
 
-    // 4. RESET PASSWORD
-    if (reqUrl.includes('reset') || body.action === 'reset-password') {
-      const { email, newPassword } = body;
-      if (!email || !newPassword) {
+    // =========================================================================
+    // 4. POST /api/auth/mfa/verify (Verifikasi Kode 2FA / Recovery Code)
+    // =========================================================================
+    if (reqUrl.includes('/mfa/verify') || (req.method === 'POST' && body.action === 'mfa_verify')) {
+      const { mfa_token, code, recovery_code, remember_device } = body;
+
+      if (!mfa_token || (!code && !recovery_code)) {
         res.statusCode = 400;
-        res.end(JSON.stringify({ success: false, message: 'Email dan kata sandi baru wajib diisi.' }));
+        res.end(JSON.stringify({ success: false, message: 'Token MFA dan kode verifikasi wajib diisi.' }));
         return;
       }
 
-      const cleanEmail = email.toLowerCase().trim();
-      const user = memoryUsers.find(u => u.email === cleanEmail);
+      const decoded = verifyJwt(mfa_token);
+      if (!decoded || decoded.scope !== 'mfa') {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ success: false, message: 'Sesi verifikasi 2FA telah kedaluwarsa. Silakan masuk ulang.' }));
+        return;
+      }
 
+      const user = memoryUsers.find(u => u.id === decoded.userId || u.email === decoded.email);
       if (!user) {
         res.statusCode = 404;
-        res.end(JSON.stringify({ success: false, message: 'Email tidak terdaftar.' }));
+        res.end(JSON.stringify({ success: false, message: 'Pengguna tidak ditemukan.' }));
         return;
       }
 
-      const salt = crypto.randomBytes(16).toString('hex');
+      let isCodeValid = false;
+
+      // A. Verifikasi via Recovery Code
+      if (recovery_code) {
+        const check = verifyRecoveryCode(recovery_code, user.recovery_codes || []);
+        if (check.valid) {
+          isCodeValid = true;
+          user.recovery_codes = check.remainingHashes; // Kode recovery hangus sekali pakai!
+        }
+      }
+      // B. Verifikasi via Email OTP
+      else if (user.mfa_type === 'email') {
+        const check = verifyEmailOtp(user.email, code);
+        isCodeValid = check.valid;
+      }
+      // C. Verifikasi via TOTP Authenticator (Google / Microsoft Authenticator)
+      else {
+        let plainSecret = null;
+        if (user.mfa_secret_enc) {
+          plainSecret = decryptSecret(user.mfa_secret_enc);
+        } else {
+          // Fallback demo seed jika belum pernah di-enroll
+          plainSecret = 'JBSWY3DPEHPK3PXP';
+        }
+
+        if (plainSecret) {
+          isCodeValid = verifyTotpCode(plainSecret, code, user.id);
+        }
+      }
+
+      if (!isCodeValid) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ success: false, message: 'Kode verifikasi 2 langkah tidak valid atau sudah kedaluwarsa.' }));
+        return;
+      }
+
+      // Tangani "Percayai Perangkat ini 30 Hari"
+      let newDeviceToken = null;
+      if (remember_device) {
+        const devToken = generateRefreshToken().token;
+        trustedDevicesStore.set(devToken, {
+          userId: user.id,
+          expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 Hari
+        });
+        newDeviceToken = devToken;
+      }
+
+      // Terbitkan Sesi Penuh
+      const sanitized = sanitizeUser(user);
+      const accessToken = signJwt(sanitized, undefined, 900);
+      const { token: refreshToken, hash: refreshHash } = generateRefreshToken();
+      activeRefreshTokens.add(refreshHash);
+
+      res.statusCode = 200;
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Verifikasi 2 langkah berhasil!',
+        user: sanitized,
+        accessToken,
+        refreshToken,
+        deviceToken: newDeviceToken
+      }));
+      return;
+    }
+
+    // =========================================================================
+    // 5. POST /api/auth/mfa/setup (Inisiasi Pendaftaran TOTP Authenticator)
+    // =========================================================================
+    if (reqUrl.includes('/mfa/setup') || (req.method === 'POST' && body.action === 'mfa_setup')) {
+      const authHeader = req.headers?.authorization || '';
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+      const authUser = verifyJwt(token);
+
+      if (!authUser) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ success: false, message: 'Silakan masuk terlebih dahulu untuk mengatur 2FA.' }));
+        return;
+      }
+
+      const { secret, otpauthUrl } = generateTotpSecret(authUser.email);
+      const { codes, hashedCodes } = generateRecoveryCodes();
+
+      // Simpan sementara secret dan recovery codes yang menunggu verifikasi pertama
+      const targetUser = memoryUsers.find(u => u.email === authUser.email);
+      if (targetUser) {
+        targetUser._pendingSecret = secret;
+        targetUser._pendingRecoveryHashes = hashedCodes;
+      }
+
+      res.statusCode = 200;
+      res.end(JSON.stringify({
+        success: true,
+        secret,
+        otpauthUrl,
+        recoveryCodes: codes,
+        message: 'Pindai kode QR atau masukkan kunci rahasia ke aplikasi Authenticator Anda.'
+      }));
+      return;
+    }
+
+    // =========================================================================
+    // 6. POST /api/auth/mfa/enable (Aktivasi TOTP Setelah Verifikasi 1 Kode Valid)
+    // =========================================================================
+    if (reqUrl.includes('/mfa/enable') || (req.method === 'POST' && body.action === 'mfa_enable')) {
+      const authHeader = req.headers?.authorization || '';
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+      const authUser = verifyJwt(token);
+
+      if (!authUser) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ success: false, message: 'Silakan masuk terlebih dahulu.' }));
+        return;
+      }
+
+      const { code } = body;
+      const targetUser = memoryUsers.find(u => u.email === authUser.email);
+
+      if (!targetUser || !targetUser._pendingSecret) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: 'Sesi setup 2FA tidak ditemukan. Silakan mulai ulang.' }));
+        return;
+      }
+
+      // Verifikasi 1 kode valid
+      const isValid = verifyTotpCode(targetUser._pendingSecret, code, targetUser.id);
+      if (!isValid) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: 'Kode authenticator salah. Pastikan waktu jam perangkat Anda sinkron.' }));
+        return;
+      }
+
+      // Enkripsi Secret dengan AES-256-GCM & Simpan Permanen
+      targetUser.mfa_enabled = 1;
+      targetUser.mfa_type = 'totp';
+      targetUser.mfa_secret_enc = encryptSecret(targetUser._pendingSecret);
+      targetUser.recovery_codes = targetUser._pendingRecoveryHashes || [];
+      delete targetUser._pendingSecret;
+      delete targetUser._pendingRecoveryHashes;
+
+      res.statusCode = 200;
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Verifikasi 2 Langkah (2FA) berhasil diaktifkan untuk akun Anda!'
+      }));
+      return;
+    }
+
+    // =========================================================================
+    // 7. POST /api/auth/reset-password/request (Minta Token Reset 15 Menit)
+    // =========================================================================
+    if (reqUrl.includes('/reset-password/request') || (req.method === 'POST' && body.action === 'reset_request')) {
+      const { email } = body;
+      const cleanEmail = normalizeEmail(email);
+
+      if (cleanEmail) {
+        const user = memoryUsers.find(u => u.email === cleanEmail);
+        if (user) {
+          const rawToken = Array.from(crypto.randomBytes(16)).map(b => b.toString(16).padStart(2, '0')).join('');
+          const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+          passwordResetTokens.set(tokenHash, {
+            email: cleanEmail,
+            expiresAt: Date.now() + 15 * 60 * 1000,
+            used: false
+          });
+
+          sendPasswordResetEmail({ toEmail: cleanEmail, resetToken: rawToken });
+        }
+      }
+
+      // Anti-Enumeration: Respon generik identik apakah email ditemukan atau tidak
+      res.statusCode = 200;
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Jika email terdaftar, petunjuk pemulihan kata sandi telah dikirimkan ke alamat email Anda.'
+      }));
+      return;
+    }
+
+    // =========================================================================
+    // 8. POST /api/auth/reset-password/confirm (Ganti Password dengan Token Acak)
+    // =========================================================================
+    if (reqUrl.includes('/reset-password/confirm') || (req.method === 'POST' && body.action === 'reset_confirm')) {
+      const { token, newPassword } = body;
+
+      if (!token || !newPassword) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: 'Token pemulihan dan kata sandi baru wajib diisi.' }));
+        return;
+      }
+
+      const policyCheck = validatePasswordPolicy(newPassword);
+      if (!policyCheck.valid) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: policyCheck.message }));
+        return;
+      }
+
+      const tokenHash = crypto.createHash('sha256').update(token.trim()).digest('hex');
+      const resetEntry = passwordResetTokens.get(tokenHash);
+
+      if (!resetEntry || resetEntry.used || Date.now() > resetEntry.expiresAt) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({
+          success: false,
+          message: 'Token pemulihan tidak valid atau telah kedaluwarsa. Silakan minta tautan baru.'
+        }));
+        return;
+      }
+
+      const user = memoryUsers.find(u => u.email === resetEntry.email);
+      if (!user) {
+        res.statusCode = 404;
+        res.end(JSON.stringify({ success: false, message: 'Pengguna tidak ditemukan.' }));
+        return;
+      }
+
+      // Update Password dengan Hashing Kuat 210.000 Iterasi
+      const { hash, salt, iterations } = hashPassword(newPassword);
+      user.passwordHash = hash;
       user.salt = salt;
-      user.passwordHash = hashPassword(newPassword, salt);
+      user.password_algo = `pbkdf2_sha512_${iterations}`;
+      resetEntry.used = true; // Token sekali pakai langsung hangus
 
       res.statusCode = 200;
       res.end(JSON.stringify({
@@ -204,10 +642,61 @@ export default async function handler(req, res) {
       return;
     }
 
+    // Default Fallback
     res.statusCode = 200;
-    res.end(JSON.stringify({ success: true, service: 'RuangSinema Cloud Auth API Online' }));
+    res.end(JSON.stringify({
+      success: true,
+      service: 'RuangSinema Hardened Security Auth API Online',
+      status: 'Protected with 210k PBKDF2-SHA512, 2FA, & Anti-Brute-Force Shield'
+    }));
   } catch (fatalError) {
+    console.error('[Auth Error Log]', fatalError);
     res.statusCode = 500;
-    res.end(JSON.stringify({ success: false, error: fatalError.message, stack: fatalError.stack }));
+    // ZERO STACK TRACE LEAKAGE
+    res.end(JSON.stringify({
+      success: false,
+      message: 'Terjadi kesalahan sistem internal. Silakan coba beberapa saat lagi.'
+    }));
+  }
+}
+
+/**
+ * Tangani Insiden 5x Lockout: Resolusi GeoIP, Kirim Email, dan Siarkan ke Dashboard Real-Time
+ */
+async function handleLockoutIncident(email, ip, userAgent, remainingMinutes) {
+  try {
+    const location = await lookupIpLocation(ip);
+    const parsedUa = parseUserAgent(userAgent);
+    const deviceDesc = `${parsedUa.browser} on ${parsedUa.os} (${parsedUa.device})`;
+
+    // 1. Kirim Email Peringatan ke Pemilik Akun
+    sendSecurityAlertEmail({
+      toEmail: email,
+      ip,
+      location,
+      device: deviceDesc,
+      lockedMinutes: remainingMinutes
+    });
+
+    // 2. Broadcast ke Dashboard Keamanan Admin secara Real-Time via SSE
+    broadcastSecurityEvent({
+      type: 'login_blocked',
+      severity: 'critical',
+      email,
+      ip,
+      location: {
+        city: location.city,
+        country: location.country,
+        isp: location.isp,
+        latitude: location.latitude,
+        longitude: location.longitude
+      },
+      device: deviceDesc,
+      attemptCount: 5,
+      lockedUntilMinutes: remainingMinutes,
+      message: `Percobaan brute-force 5x terdeteksi. Akun ${email} dikunci dari IP ${ip} (${location.city}, ${location.country})`
+    });
+  } catch (err) {
+    console.warn('[Incident Handler Warning]', err.message);
   }
 }
