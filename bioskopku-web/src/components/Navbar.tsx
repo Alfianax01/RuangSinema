@@ -49,15 +49,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const navCategories = [
-    { id: 'home', label: 'Home', icon: Home },
-    { id: 'movie', label: 'Movies', icon: Film },
-    { id: 'series', label: 'TV Series', icon: Tv },
-    { id: 'indo', label: 'Film Indo', icon: Sparkles },
-    { id: 'kdrama', label: 'Drakor', icon: Globe },
-    { id: 'dracin', label: 'Dracin', icon: Globe },
-    { id: 'anime', label: 'Anime', icon: Globe },
-    { id: 'library', label: 'Library', icon: Layers, badge: savedCount },
-    { id: 'genres', label: 'Genres', icon: Tag },
+    { id: 'home', label: 'BERANDA', icon: Home },
+    { id: 'movie', label: 'FILM', icon: Film },
+    { id: 'series', label: 'SERIES', icon: Tv },
+    { id: 'indo', label: 'FILM INDO', icon: Sparkles },
+    { id: 'kdrama', label: 'DRAKOR', icon: Globe },
+    { id: 'dracin', label: 'DRACIN', icon: Globe },
+    { id: 'anime', label: 'ANIME', icon: Globe },
+    { id: 'library', label: 'DAFTAR SAYA', icon: Layers, badge: savedCount },
+    { id: 'genres', label: 'KATEGORI', icon: Tag },
   ];
 
   const handleCategoryClick = (id: string) => {
@@ -84,177 +84,197 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+    <header className={`sticky top-0 z-50 w-full transition-all duration-300 font-sans ${
       isScrolled 
-        ? 'bg-[#08080a]/95 backdrop-blur-xl border-b border-white/10 shadow-2xl' 
-        : 'bg-gradient-to-b from-[#08080a] via-[#08080a]/90 to-transparent backdrop-blur-md border-b border-white/5'
+        ? 'bg-[#0A0A0C]/95 backdrop-blur-xl border-b border-white/[0.08] shadow-2xl shadow-black/80' 
+        : 'bg-gradient-to-b from-[#0A0A0C] via-[#0A0A0C]/90 to-transparent backdrop-blur-md border-b border-white/[0.04]'
     }`}>
-      {/* Top Header Row */}
+      {/* Top Header Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between gap-4">
         
-        {/* Left: Brand Logo (Angled Kinetic Cyber Badge) */}
+        {/* Brand Identity: Clean, Action Poster Aesthetic */}
         <div 
           onClick={() => handleCategoryClick('home')}
           className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
         >
-          <div className="relative transform -rotate-2 group-hover:rotate-0 transition-transform duration-300">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF1E27] to-[#B30006] p-0.5 shadow-lg shadow-[#FF1E27]/40">
-              <div className="w-full h-full bg-[#0d0d12] rounded-[10px] flex items-center justify-center border border-white/10">
-                <span className="font-display text-xl text-[#D4FF00] tracking-wider font-black -skew-x-6">//</span>
-              </div>
-            </div>
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[3px] bg-[#FF2E2E] flex items-center justify-center font-display font-black text-xl sm:text-2xl text-white tracking-wider shadow-lg shadow-[#FF2E2E]/25 transition-transform group-hover:scale-105 duration-200">
+            R
           </div>
-
-          <div className="flex flex-col">
-            <div className="flex items-center text-2xl sm:text-3xl font-display tracking-wider uppercase leading-none">
-              <span className="text-white drop-shadow">RUANG</span>
-              <span className="text-[#FF1E27] ml-0.5 drop-shadow">SINEMA</span>
-              <span className="w-2 h-2 rounded-full bg-[#D4FF00] ml-1 mb-1 animate-ping" />
-            </div>
-            <span className="text-[9px] font-mono tracking-widest text-zinc-400 uppercase -mt-1 hidden sm:block">
-              Bold Cinema Stream · 60 FPS
+          <div className="flex flex-col leading-none">
+            <span className="font-display text-2xl sm:text-3xl tracking-[0.06em] text-white">
+              RUANG<span className="text-[#FF2E2E]">SINEMA</span>
+            </span>
+            <span className="text-[9px] font-mono tracking-[0.25em] text-zinc-400 uppercase font-semibold">
+              PREMIUM STREAMING
             </span>
           </div>
         </div>
 
-        {/* Right: UNIFIED CONTROL DOCK (No More Floating Elements!) */}
-        <div className="flex items-center bg-[#121217]/90 border border-white/10 rounded-xl p-1 shadow-xl backdrop-blur-md">
-          
-          {/* 1. Search Box / Trigger */}
-          {isSearchOpen ? (
-            <form onSubmit={handleSearchSubmit} className="relative flex items-center animate-in fade-in">
-              <input 
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Cari judul, drakor, genre..."
-                autoFocus
-                className="w-48 sm:w-64 px-3 py-1.5 pl-8 rounded-lg bg-[#1a1a24] border border-[#D4FF00] text-white text-xs placeholder-zinc-400 focus:outline-none shadow-inner"
-              />
-              <Search className="w-3.5 h-3.5 text-[#D4FF00] absolute left-2.5 pointer-events-none" />
-              <button 
-                type="button" 
-                onClick={() => setIsSearchOpen(false)}
-                className="absolute right-2.5 text-zinc-400 hover:text-white"
+        {/* Center: Desktop Navigation Bar with Clean 2px Active Underline */}
+        <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
+          {navCategories.map((cat) => {
+            const active = isCategoryActive(cat.id);
+            return (
+              <button
+                key={cat.id}
+                onClick={() => handleCategoryClick(cat.id)}
+                className={`relative px-3 py-2 text-xs font-bold tracking-[0.04em] transition-colors flex items-center gap-1.5 ${
+                  active ? 'text-white' : 'text-zinc-400 hover:text-white'
+                }`}
               >
-                <X className="w-3.5 h-3.5" />
+                <span>{cat.label}</span>
+                {Boolean(cat.badge) && cat.badge! > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-[2px] bg-[#FF2E2E] text-white font-mono font-bold">
+                    {cat.badge}
+                  </span>
+                )}
+                {/* 2px Solid Accent Line Indicator (No bulky block) */}
+                {active && (
+                  <span className="absolute bottom-0 left-2 right-2 h-[2px] bg-[#FF2E2E] rounded-full shadow-sm shadow-[#FF2E2E]/60" />
+                )}
               </button>
-            </form>
-          ) : (
-            <button
-              onClick={() => setIsSearchOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/5 text-xs font-semibold transition-all"
-              title="Cari Film"
-            >
-              <Search className="w-3.5 h-3.5 text-[#D4FF00]" />
-              <span className="hidden md:inline font-mono text-[11px]">SEARCH</span>
-            </button>
-          )}
+            );
+          })}
+        </nav>
 
-          {/* Hairline Separator */}
-          <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
-
-          {/* 2. Download APK Action */}
-          <a
-            href="/ruangsinema.apk"
-            download="RuangSinema.apk"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-300 hover:text-[#D4FF00] hover:bg-white/5 transition-all"
-            title="Download APK Android"
-          >
-            <Download className="w-3.5 h-3.5 text-[#D4FF00]" />
-            <span className="hidden sm:inline font-mono text-[11px]">APK</span>
-          </a>
-
-          {/* Hairline Separator */}
-          <div className="w-px h-5 bg-white/10 mx-1" />
-
-          {/* 3. User Profile Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setIsAccountOpen(!isAccountOpen)}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/5 text-xs font-bold text-white transition-all"
-            >
-              <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-[#FF1E27] to-[#D4FF00] p-0.5">
-                <div className="w-full h-full bg-[#08080a] rounded-[4px] flex items-center justify-center text-white text-[11px] font-black">
-                  {user?.name ? user.name[0].toUpperCase() : <UserIcon className="w-3 h-3 text-[#D4FF00]" />}
-                </div>
-              </div>
-              <span className="hidden lg:inline max-w-[90px] truncate text-[11px] font-mono">{user?.name || 'VIP'}</span>
-              <ChevronDown className="w-3 h-3 text-zinc-400" />
-            </button>
-
-            {isAccountOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-[#121217] border border-white/15 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95">
-                <div className="px-4 py-2.5 border-b border-white/10 space-y-0.5">
-                  <p className="text-xs font-black text-white truncate">{user?.name || 'Member VIP'}</p>
-                  <p className="text-[10px] text-[#D4FF00] font-mono uppercase tracking-wider flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4FF00]" />
-                    VIP Streamer Active
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    onChangeTab('profile');
-                    setIsAccountOpen(false);
-                  }}
-                  className="w-full px-4 py-2.5 text-left text-xs text-zinc-300 hover:bg-white/5 hover:text-white flex items-center gap-2"
+        {/* Right: User Actions Dock (Visually Grouped with Clean Dividers) */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-white/[0.04] border border-white/[0.08] rounded-[4px] p-1 shadow-inner">
+            
+            {/* Search Input / Button */}
+            {isSearchOpen ? (
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 px-2 py-0.5">
+                <input
+                  type="text"
+                  placeholder="Cari film, serial..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  autoFocus
+                  className="bg-transparent text-xs text-white focus:outline-none w-36 sm:w-48 placeholder-zinc-500 font-medium"
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setIsSearchOpen(false)}
+                  className="p-1 text-zinc-400 hover:text-white transition-colors"
                 >
-                  <UserIcon className="w-3.5 h-3.5 text-[#D4FF00]" />
-                  <span>Akun & Keamanan 2FA</span>
+                  <X className="w-3.5 h-3.5" />
                 </button>
-                {onLogout && (
+              </form>
+            ) : (
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                title="Cari Film"
+                className="flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-[3px] transition-all"
+              >
+                <Search className="w-4 h-4 text-zinc-400" />
+                <span className="hidden md:inline text-zinc-400">Cari...</span>
+              </button>
+            )}
+
+            {/* Subtle Vertical Hairline Divider */}
+            <div className="h-4 w-[1px] bg-white/[0.12] mx-1" />
+
+            {/* Download App Shortcut */}
+            <a
+              href="/app-release.apk"
+              download
+              title="Download Aplikasi Android"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/[0.06] rounded-[3px] transition-all"
+            >
+              <Download className="w-4 h-4 text-[#FF2E2E]" />
+              <span className="hidden xl:inline text-zinc-300">App</span>
+            </a>
+
+            {/* Subtle Vertical Hairline Divider */}
+            <div className="h-4 w-[1px] bg-white/[0.12] mx-1" />
+
+            {/* Profile Avatar & Menu */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  if (user) {
+                    setIsAccountOpen(!isAccountOpen);
+                  } else {
+                    onChangeTab('profile');
+                  }
+                }}
+                className="flex items-center gap-2 px-2 py-1 hover:bg-white/[0.06] rounded-[3px] transition-all"
+              >
+                <div className="w-7 h-7 rounded-[3px] bg-[#1C1D22] border border-white/10 flex items-center justify-center text-xs font-bold text-white overflow-hidden">
+                  {user ? (
+                    <span className="text-[#FF2E2E] font-bold">{user.name.charAt(0).toUpperCase()}</span>
+                  ) : (
+                    <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
+                  )}
+                </div>
+                {user ? (
+                  <ChevronDown className="w-3 h-3 text-zinc-400" />
+                ) : (
+                  <span className="text-xs font-bold text-white hidden sm:inline">Masuk</span>
+                )}
+              </button>
+
+              {/* Account Dropdown */}
+              {isAccountOpen && user && (
+                <div className="absolute right-0 mt-2 w-52 bg-[#121318] border border-white/15 rounded-[4px] shadow-2xl p-2 z-50">
+                  <div className="px-3 py-2 border-b border-white/10 mb-1">
+                    <p className="text-xs font-bold text-white truncate">{user.name}</p>
+                    <p className="text-[11px] text-zinc-400 truncate">{user.email}</p>
+                    <span className="inline-block mt-1 text-[9px] font-mono uppercase px-1.5 py-0.2 bg-[#FF2E2E]/15 text-[#FF2E2E] border border-[#FF2E2E]/30 rounded-[2px] font-bold">
+                      {user.role || 'VIP Member'}
+                    </span>
+                  </div>
                   <button
                     onClick={() => {
-                      onLogout();
                       setIsAccountOpen(false);
+                      onChangeTab('profile');
                     }}
-                    className="w-full px-4 py-2.5 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 border-t border-white/10"
+                    className="w-full text-left px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/5 rounded-[2px] transition-colors"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Keluar Akun</span>
+                    Pengaturan Profil
                   </button>
-                )}
-              </div>
-            )}
-          </div>
+                  {onLogout && (
+                    <button
+                      onClick={() => {
+                        setIsAccountOpen(false);
+                        onLogout();
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-[#FF2E2E] hover:bg-[#FF2E2E]/10 rounded-[2px] transition-colors flex items-center gap-2"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Keluar
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
+          </div>
         </div>
 
       </div>
 
-      {/* Sub-Nav: UNDERLINE KINETIC TABS (Goodbye Uniform Pills!) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-x-auto no-scrollbar flex items-center gap-1 sm:gap-2 border-t border-white/5">
-        {navCategories.map((item) => {
-          const active = isCategoryActive(item.id);
-          const IconComp = item.icon;
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleCategoryClick(item.id)}
-              className={`group relative flex items-center gap-2 py-3 px-3.5 sm:px-4 text-xs font-bold tracking-wider uppercase transition-all whitespace-nowrap shrink-0 ${
-                active
-                  ? 'text-white'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <IconComp className={`w-3.5 h-3.5 transition-colors ${active ? 'text-[#D4FF00]' : 'text-zinc-500 group-hover:text-zinc-300'}`} />
-              <span className="font-mono text-[11px] sm:text-xs font-bold">{item.label}</span>
-              
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-black ${
-                  active ? 'bg-[#D4FF00] text-black font-black' : 'bg-[#FF1E27] text-white'
-                }`}>
-                  {item.badge}
-                </span>
-              )}
-
-              {/* Glowing Active Underline Indicator with Slanted End */}
-              {active && (
-                <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-[#FF1E27] via-[#D4FF00] to-[#D4FF00] shadow-[0_0_12px_#D4FF00]" />
-              )}
-            </button>
-          );
-        })}
+      {/* Mobile Horizontal Category Rail */}
+      <div className="lg:hidden w-full overflow-x-auto border-t border-white/[0.04] scrollbar-none px-4 py-2 bg-[#0A0A0C]/95">
+        <div className="flex items-center gap-4 whitespace-nowrap min-w-max">
+          {navCategories.map((cat) => {
+            const active = isCategoryActive(cat.id);
+            return (
+              <button
+                key={cat.id}
+                onClick={() => handleCategoryClick(cat.id)}
+                className={`text-xs font-bold tracking-[0.04em] pb-1 relative transition-colors ${
+                  active ? 'text-white' : 'text-zinc-400'
+                }`}
+              >
+                <span>{cat.label}</span>
+                {active && (
+                  <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#FF2E2E] rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </header>
   );

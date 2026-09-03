@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Star, Info } from 'lucide-react';
+import { Play, Star, Info, ChevronRight, ChevronLeft } from 'lucide-react';
 import type { MovieDetails, Movie } from '../types';
 
 interface HeroBannerProps {
@@ -19,7 +19,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
     if (!movies.length) return;
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % movies.length);
-    }, 8000);
+    }, 7000);
     return () => clearInterval(timer);
   }, [movies.length]);
 
@@ -27,118 +27,172 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   const current = movies[currentIndex] || movies[0];
   const isSeries = current.type === 'series';
 
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % movies.length);
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev - 1 + movies.length) % movies.length);
+  };
+
   return (
-    <div className="relative w-full h-[580px] sm:h-[680px] lg:h-[760px] overflow-hidden bg-[#08080a] select-none -mt-16 sm:-mt-18">
+    <div className="relative w-full bg-[#0A0A0C] border-b border-white/[0.06] overflow-hidden select-none -mt-16 sm:-mt-18 pt-16 sm:pt-18">
       
-      {/* Background Poster with Subtle Zoom Motion */}
-      <div
-        key={current._id}
-        className="absolute inset-0 bg-cover bg-center transition-all duration-1000 transform scale-105 animate-in fade-in"
-        style={{
-          backgroundImage: `url('${current.backdropImg || current.posterImg}')`,
-        }}
-      />
+      {/* Ambient Red Glow for Depth */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#FF2E2E]/[0.07] rounded-full blur-3xl pointer-events-none -z-0" />
 
-      {/* Asymmetrical High-Impact Angular Gradients */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-[#08080a]/60 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#08080a] via-[#08080a]/80 to-transparent" />
-      <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-[#08080a]/90 via-[#08080a]/40 to-transparent" />
+      {/* Main Container: Split Asymmetric Grid */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center min-h-[480px] sm:min-h-[540px]">
+          
+          {/* LEFT COLUMN: Narrative & Action (Width 5 cols on lg, stacks on mobile) */}
+          <div className="lg:col-span-6 xl:col-span-5 flex flex-col justify-center space-y-4 sm:space-y-5 order-2 lg:order-1">
+            
+            {/* Hierarchical Badge System: Only ONE Solid Badge */}
+            <div className="flex items-center flex-wrap gap-2">
+              {/* The ONLY Solid Badge: Maximum Importance */}
+              <span className="bg-[#FF2E2E] text-white text-[10px] sm:text-[11px] font-mono font-bold tracking-[0.15em] uppercase px-2.5 py-1 rounded-[3px] shadow-md shadow-[#FF2E2E]/25">
+                EKSKLUSIF
+              </span>
 
-      {/* Diagonal Cyber Grid & Film Strip Accent Lines */}
-      <div className="absolute right-0 top-1/4 w-96 h-96 bg-[#FF1E27]/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute left-1/3 bottom-10 w-72 h-72 bg-[#D4FF00]/5 rounded-full blur-3xl pointer-events-none" />
+              {/* Secondary Outline Badges: 1px border, transparent bg, same 3px radius */}
+              <span className="border border-white/20 bg-white/[0.04] text-zinc-200 text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider uppercase px-2.5 py-1 rounded-[3px]">
+                {isSeries ? 'SERIAL TV' : 'FILM'}
+              </span>
 
-      {/* Content Container */}
-      <div className="relative z-10 max-w-7xl mx-auto h-full flex flex-col justify-end px-4 sm:px-6 lg:px-8 pb-14 sm:pb-20 space-y-4">
-        
-        {/* Top Kicker: Electric Cyber Lime Angled Badge */}
-        <div className="flex items-center gap-2.5">
-          <div className="skew-tag bg-[#D4FF00] px-3 py-1 shadow-md shadow-[#D4FF00]/30">
-            <span className="skew-tag-content font-mono font-black text-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-black animate-ping" />
-              EXCLUSIVE PREMIERE
-            </span>
-          </div>
+              <span className="border border-white/20 bg-white/[0.04] text-zinc-200 text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider uppercase px-2 py-1 rounded-[3px]">
+                ULTRA HD
+              </span>
 
-          <div className="skew-tag bg-white/10 px-2.5 py-1 border border-white/15">
-            <span className="skew-tag-content font-mono font-bold text-white text-[10px] sm:text-xs uppercase tracking-wider">
-              {isSeries ? 'TV SERIES' : 'MOVIE'}
-            </span>
-          </div>
-
-          <div className="skew-tag bg-[#FF1E27]/20 border border-[#FF1E27]/40 px-2.5 py-1">
-            <span className="skew-tag-content font-mono font-bold text-[#FF1E27] text-[10px] sm:text-xs tracking-wider">
-              60 FPS HD
-            </span>
-          </div>
-        </div>
-
-        {/* Massive Condensed Headline Font (Extreme Contrast) */}
-        <div className="space-y-1">
-          <h1 className="font-display text-5xl sm:text-7xl lg:text-9xl uppercase tracking-wider leading-[0.88] text-white drop-shadow-2xl">
-            {current.title}
-          </h1>
-
-          {/* Metadata Ribbon: Rating, Year, Duration, Audio */}
-          <div className="flex items-center flex-wrap gap-2.5 text-xs font-mono pt-1 text-zinc-300">
-            <div className="flex items-center gap-1 bg-[#D4FF00]/15 border border-[#D4FF00]/40 px-2 py-0.5 rounded text-[#D4FF00] font-black">
-              <Star className="w-3.5 h-3.5 fill-[#D4FF00]" />
-              <span>{current.rating || '8.8'}</span>
+              <span className="border border-white/20 bg-white/[0.04] text-zinc-200 text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider uppercase px-2 py-1 rounded-[3px]">
+                SUB INDO
+              </span>
             </div>
-            <span className="text-zinc-600 font-bold">/</span>
-            <span className="text-white font-bold">{current.year || '2025'}</span>
-            <span className="text-zinc-600 font-bold">/</span>
-            <span className="text-zinc-300">{isSeries ? 'Multi-Episode' : current.duration || '2j 10m'}</span>
-            <span className="text-zinc-600 font-bold">/</span>
-            <span className="text-zinc-300">{current.genres?.slice(0, 3).join(' · ') || 'Action · Drama'}</span>
-          </div>
-        </div>
 
-        {/* Synopsis */}
-        <p className="text-xs sm:text-sm text-zinc-300 max-w-xl line-clamp-2 sm:line-clamp-3 leading-relaxed font-medium drop-shadow-md">
-          {current.synopsis}
-        </p>
+            {/* Title: Display Font with Calibrated Letter-Spacing for Multi-Word Readability */}
+            <div className="space-y-2">
+              <h1 className="font-display text-4xl sm:text-6xl lg:text-6xl xl:text-7xl uppercase text-white tracking-[0.04em] leading-[0.95] drop-shadow-xl">
+                {current.title}
+              </h1>
 
-        {/* Energetic CTAs: Pulse Glow & Micro-Interactions */}
-        <div className="pt-2 flex items-center gap-3">
-          <button
-            onClick={() => onSelectMovie(current)}
-            className="group relative px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#FF1E27] via-[#FF2E38] to-[#D4FF00] text-black font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-3 shadow-2xl shadow-[#FF1E27]/40 animate-pulse-glow active:scale-95 transition-all"
-          >
-            <div className="w-6 h-6 rounded-full bg-black/90 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
-              <Play className="w-3.5 h-3.5 fill-white stroke-none ml-0.5 group-hover:translate-x-0.5 transition-transform" />
+              {/* Clean Metadata Line */}
+              <div className="flex items-center flex-wrap gap-2.5 text-xs font-mono text-zinc-400 pt-0.5">
+                {/* Rating with same accent color outline */}
+                <div className="flex items-center gap-1 text-[#FF2E2E] font-bold border border-[#FF2E2E]/30 bg-[#FF2E2E]/10 px-2 py-0.5 rounded-[3px]">
+                  <Star className="w-3.5 h-3.5 fill-[#FF2E2E]" />
+                  <span>{current.rating || '8.7'}</span>
+                </div>
+                <span className="text-zinc-600">/</span>
+                <span className="text-zinc-200 font-semibold">{current.year || '2025'}</span>
+                <span className="text-zinc-600">/</span>
+                <span className="text-zinc-300">{isSeries ? 'Multi-Episode' : (current.duration || '2j 15m')}</span>
+                <span className="text-zinc-600">/</span>
+                <span className="text-zinc-300 truncate max-w-[200px]">
+                  {current.genres?.slice(0, 2).join(', ') || 'Action'}
+                </span>
+              </div>
             </div>
-            <span className="font-extrabold text-white group-hover:tracking-widest transition-all">
-              Watch Now
-            </span>
-          </button>
 
-          <button
-            onClick={() => onSelectMovie(current)}
-            className="px-6 py-3.5 rounded-xl bg-[#121217]/90 hover:bg-[#1a1a22] text-zinc-200 hover:text-white border border-white/10 hover:border-white/30 font-bold text-xs sm:text-sm flex items-center gap-2 transition-all"
-          >
-            <Info className="w-4 h-4 text-zinc-400" />
-            <span>Detail Sinema</span>
-          </button>
+            {/* Concise Synopsis with Controlled Line Clamping */}
+            <p className="text-xs sm:text-sm text-zinc-300/90 leading-relaxed font-normal line-clamp-3 max-w-xl">
+              {current.synopsis || 'Tonton tayangan perdana berkualitas tinggi dengan subtitle bahasa Indonesia resmi hanya di RuangSinema.'}
+            </p>
+
+            {/* Action Buttons: Unified Single Accent Palette */}
+            <div className="flex items-center gap-3 pt-2">
+              {/* Primary CTA Button: Solid Accent with Refined Hover */}
+              <button
+                onClick={() => onSelectMovie(current)}
+                className="bg-[#FF2E2E] hover:bg-[#E52525] active:scale-[0.98] text-white font-bold text-xs sm:text-sm uppercase tracking-[0.06em] px-6 py-3 rounded-[3px] shadow-lg shadow-[#FF2E2E]/25 flex items-center gap-2.5 transition-all duration-200"
+              >
+                <Play className="w-4 h-4 fill-white" />
+                <span>Nonton Sekarang</span>
+              </button>
+
+              {/* Secondary CTA: Outline Button */}
+              <button
+                onClick={() => onSelectMovie(current)}
+                className="border border-white/20 hover:border-white/40 hover:bg-white/[0.06] active:scale-[0.98] text-zinc-200 hover:text-white font-semibold text-xs sm:text-sm tracking-wide px-5 py-3 rounded-[3px] flex items-center gap-2 transition-all duration-200"
+              >
+                <Info className="w-4 h-4 text-zinc-400" />
+                <span>Info Detail</span>
+              </button>
+            </div>
+
+            {/* Pagination and Slider Navigation */}
+            <div className="flex items-center justify-between pt-4 border-t border-white/[0.06] max-w-md">
+              <div className="flex items-center gap-1.5">
+                {movies.slice(0, 5).map((m, idx) => (
+                  <button
+                    key={m._id || idx}
+                    onClick={() => setCurrentIndex(idx)}
+                    title={`Slide ${idx + 1}`}
+                    className={`h-1 transition-all duration-300 rounded-[1px] ${
+                      idx === currentIndex 
+                        ? 'w-7 bg-[#FF2E2E]' 
+                        : 'w-2 bg-white/20 hover:bg-white/40'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handlePrev}
+                  title="Sebelumnya"
+                  className="w-7 h-7 rounded-[3px] border border-white/10 hover:border-white/30 bg-white/[0.03] hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleNext}
+                  title="Selanjutnya"
+                  className="w-7 h-7 rounded-[3px] border border-white/10 hover:border-white/30 bg-white/[0.03] hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          {/* RIGHT COLUMN: Asymmetric Dynamic Poster / Still Art (Width 7 cols on lg) */}
+          <div className="lg:col-span-6 xl:col-span-7 relative order-1 lg:order-2">
+            <div 
+              onClick={() => onSelectMovie(current)}
+              className="group relative w-full h-[280px] sm:h-[400px] lg:h-[480px] rounded-[4px] overflow-hidden border border-white/10 cursor-pointer shadow-2xl bg-[#121318]"
+            >
+              {/* High-Resolution Key Art with Smooth Fade Transition */}
+              <div
+                key={current._id}
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105"
+                style={{
+                  backgroundImage: `url('${current.backdropImg || current.posterImg}')`,
+                }}
+              />
+
+              {/* Diagonal and Radial Dark Vignette for Cinematic Frame */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0C] via-transparent to-transparent opacity-80" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0C]/80 via-transparent to-[#0A0A0C]/40 hidden lg:block" />
+
+              {/* Action Vignette Accent Line */}
+              <div className="absolute top-3 right-3 px-2 py-1 bg-black/70 backdrop-blur-md border border-white/10 rounded-[3px] text-[10px] font-mono text-zinc-300 font-bold uppercase tracking-wider">
+                Trending #{currentIndex + 1}
+              </div>
+
+              {/* Hover Overlay Play Icon */}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="w-14 h-14 rounded-[3px] bg-[#FF2E2E] flex items-center justify-center shadow-xl shadow-[#FF2E2E]/40 transform group-hover:scale-110 transition-transform">
+                  <Play className="w-6 h-6 fill-white text-white ml-0.5" />
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
-
-        {/* Slide Indicators: Angled Slash Bars (Goodbye Round Dots!) */}
-        <div className="flex items-center gap-2 pt-2">
-          {movies.slice(0, 6).map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentIndex(idx)}
-              className={`h-1.5 transition-all duration-300 skew-tag ${
-                currentIndex === idx
-                  ? 'w-10 bg-[#D4FF00] shadow-[0_0_8px_#D4FF00]'
-                  : 'w-4 bg-white/20 hover:bg-white/40'
-              }`}
-              title={`Slide ${idx + 1}`}
-            />
-          ))}
-        </div>
-
       </div>
+
     </div>
   );
 };
