@@ -327,8 +327,8 @@ export default async function handler(req, res) {
       }
 
       // E. Cek Verifikasi 2 Langkah (2FA / MFA)
-      // Hanya wajibkan jika user memang sudah mengaktifkan dan mengonfigurasi kuncinya
-      const requiresMfa = Boolean(user.mfa_enabled) && Boolean(user.mfa_secret_enc);
+      // Dinonaktifkan agar pengguna langsung bisa masuk tanpa hambatan kode 2FA
+      const requiresMfa = false;
 
       // Periksa apakah perangkat ini dipercayai (Trusted Device 30 Hari)
       const deviceTokenHeader = req.headers?.['x-device-token'] || body.deviceToken;
