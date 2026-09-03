@@ -40,11 +40,27 @@ import { broadcastSecurityEvent } from './security.js';
 // In-Memory Global Store (disinkronkan dengan MySQL di auth-server / local store)
 let memoryUsers = [
   {
+    id: 1788315615803,
+    name: 'alfian',
+    email: 'azmialfian631@gmail.com',
+    salt: 'af99704af4305f5d2dfe7824a43035c3',
+    passwordHash: '5e0a9e7dbc1105d8083d301d8601143e9f412313f00a7d8a8ecdd4345b18303d0810c3b34c687d83600506abf0d0e175b1e944b8741a7e24344a88fa8ac1bf7b',
+    password_algo: 'pbkdf2_sha512_210000',
+    genres: ['Drakor', 'Action'],
+    role: 'Super Admin',
+    mfa_enabled: 0,
+    mfa_type: 'totp',
+    mfa_secret_enc: null,
+    recovery_codes: [],
+    created_at: '2026-09-02T04:58:15.420Z'
+  },
+  {
     id: 1,
     name: 'Alfian',
     email: 'azmialfian487@gmail.com',
-    salt: 'e92a8310cba489f0',
-    passwordHash: '8b7f8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b',
+    salt: '21787e2d1ef9fa432aa4d799e1dbca28',
+    passwordHash: 'ee8b864417be0be17ae8cd4364cf303467d5c21c4f44d912cf3ce5d2989b58e5ed10caad746801edabb65ce0bc6f08daca0e21e074416aa667bbef31264137bd',
+    password_algo: 'pbkdf2_sha512_10000',
     genres: ['Drakor', 'Series', 'Action'],
     role: 'Super Admin',
     mfa_enabled: 0,
@@ -54,11 +70,38 @@ let memoryUsers = [
     created_at: '2026-09-01T00:00:00.000Z'
   },
   {
+    id: 1788315977367,
+    name: 'jaehewan',
+    email: 'azmialfian471@gmail.com',
+    salt: '59782eba37abdd8518b26a776317126b',
+    passwordHash: '5185ff3805c30a900ce10211a7cf6de35104dab222d90ce95dc81c3ec8e67c82869e6072584d3a2b9e64a8ea57e7e464a0b3ec2dc925e7240091cb88b25751ac',
+    password_algo: 'pbkdf2_sha512_10000',
+    genres: [],
+    role: 'VIP Member',
+    mfa_enabled: 0,
+    mfa_type: 'totp',
+    created_at: '2026-09-02T04:58:15.580Z'
+  },
+  {
+    id: 1788318378687,
+    name: 'Jaehwwan',
+    email: 'kiryuukafka@gmail.com',
+    salt: 'fb2e77e59ba05a9aacaf1d6bc9e3aae5',
+    passwordHash: 'a6a9c03c56ce49c34e8916915f8a8d7e03be90b7e62e7d5ebbbe06e348a717c725267e922df9a0398902694c2c28b681d92f4f4275d5149e1624f8659ea7541b',
+    password_algo: 'pbkdf2_sha512_10000',
+    genres: [],
+    role: 'VIP Member',
+    mfa_enabled: 0,
+    mfa_type: 'totp',
+    created_at: '2026-09-02T04:58:15.793Z'
+  },
+  {
     id: 6,
     name: 'anjay',
     email: 'narutouzumaki15580@gmail.com',
     salt: 'b596886d750fb2ff1b8de56f81685fc4',
     passwordHash: 'f9d83a5960aa0b030331442ddeadf37c31ef0f62ce53b9810cf7f0698ed1445dc66699167f97483181b987f9eff099893b882fe107aa107be462b49e1a4d4775',
+    password_algo: 'pbkdf2_sha512_10000',
     genres: [],
     role: 'VIP Member',
     mfa_enabled: 0,
