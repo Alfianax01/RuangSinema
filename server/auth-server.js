@@ -683,6 +683,43 @@ const server = http.createServer(async (req, res) => {
       }
 
       // =========================================================================
+      // C2. SYNC DIRECT FROM CLIENT (Real-Time Push Langsung dari Browser)
+      // =========================================================================
+      if (pathname === '/api/auth/sync-direct') {
+        const { action, email, name, password, newPassword, role, genres } = data;
+        const cleanEmail = (email || '').toLowerCase().trim();
+
+        if (cleanEmail) {
+          if (action === 'register' && password) {
+            const { hash, salt, iterations } = hashPassword(password);
+            if (isDbConnected && dbPool) {
+              const [existing] = await dbPool.query('SELECT id FROM users WHERE email = ?', [cleanEmail]);
+              if (existing.length === 0) {
+                await dbPool.query(
+                  'INSERT INTO users (name, email, password, password_hash, salt, genres, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                  [name || 'VIP Member', cleanEmail, hash, hash, salt, JSON.stringify(genres || []), role || 'VIP Member']
+                );
+                console.log(`✨ [Direct Real-Time Client Sync] Akun baru ${cleanEmail} tersimpan ke MySQL phpMyAdmin!`);
+              }
+            }
+          } else if (action === 'reset_password' && newPassword) {
+            const { hash, salt, iterations } = hashPassword(newPassword);
+            if (isDbConnected && dbPool) {
+              await dbPool.query(
+                'UPDATE users SET password = ?, password_hash = ?, salt = ?, password_algo = ?, updated_at = NOW() WHERE email = ?',
+                [hash, hash, salt, `pbkdf2_sha512_${iterations}`, cleanEmail]
+              );
+              console.log(`🔑 [Direct Real-Time Client Sync] Kata sandi ${cleanEmail} berhasil diperbarui di MySQL phpMyAdmin!`);
+            }
+          }
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'success' }));
+        return;
+      }
+
+      // =========================================================================
       // D. RESET PASSWORD (REQUEST & CONFIRM dengan Token 32-Byte)
       // =========================================================================
       if (pathname === '/api/auth/reset-password/request') {
@@ -748,29 +785,71 @@ server.listen(PORT, () => {
   console.log(`📊 phpMyAdmin Database target: ${DB_CONFIG.user}@${DB_CONFIG.host}:${DB_CONFIG.port}/${DB_CONFIG.database}`);
 });
 
-// Otomatis Poll Vercel Cloud setiap 5 detik
-const VERCEL_USERS_API = 'https://ruang-sinema.vercel.app/api/auth/users';
+// Otomatis Poll Vercel Cloud setiap 2 detik secara Real-Time (Akun Baru & Ganti Password)
+const VERCEL_SYNC_API = 'https://ruang-sinema.vercel.app/api/auth/sync-db?secret=ruangsinema_mysql_sync_key_2026';
+
 async function syncVercelUsersToLocalMySQL() {
   if (!isDbConnected || !dbPool) return;
   try {
-    const res = await fetch(VERCEL_USERS_API, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(VERCEL_SYNC_API, { signal: AbortSignal.timeout(4000) });
     if (res.ok) {
       const data = await res.json();
       const users = data.users || [];
+      const fallbackList = getFallbackUsers();
+      let fallbackChanged = false;
+
       for (const u of users) {
         const cleanEmail = (u.email || '').toLowerCase().trim();
-        if (!cleanEmail) continue;
-        const [existing] = await dbPool.query('SELECT id FROM users WHERE email = ?', [cleanEmail]);
-        if (existing.length === 0 && u.passwordHash) {
+        if (!cleanEmail || !u.passwordHash) continue;
+
+        const [existing] = await dbPool.query('SELECT id, password, password_hash FROM users WHERE email = ?', [cleanEmail]);
+
+        // 1. Akun Baru -> Masukkan ke MySQL
+        if (existing.length === 0) {
           await dbPool.query(
-            'INSERT INTO users (name, email, password, password_hash, salt, genres, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO users (name, email, password, password_hash, salt, genres, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
             [u.name || 'VIP Member', cleanEmail, u.passwordHash, u.passwordHash, u.salt || '', JSON.stringify(u.genres || []), u.role || 'VIP Member']
           );
-          console.log(`✨ [Auto-Sync Vercel -> MySQL] Inserted user (${cleanEmail}) into phpMyAdmin`);
+          console.log(`✨ [Real-Time Sync Vercel -> MySQL] Akun baru (${cleanEmail}) otomatis tersimpan ke phpMyAdmin!`);
+        } 
+        // 2. Akun Sudah Ada -> Cek apakah password diperbarui di Vercel
+        else {
+          const currentHash = existing[0].password_hash || existing[0].password;
+          if (currentHash !== u.passwordHash) {
+            await dbPool.query(
+              'UPDATE users SET password = ?, password_hash = ?, salt = ?, updated_at = NOW() WHERE email = ?',
+              [u.passwordHash, u.passwordHash, u.salt || '', cleanEmail]
+            );
+            console.log(`🔑 [Real-Time Sync Vercel -> MySQL] Kata sandi (${cleanEmail}) otomatis diperbarui di phpMyAdmin!`);
+          }
         }
+
+        // Sinkronkan ke users_fallback.json
+        const fbIndex = fallbackList.findIndex(f => f.email === cleanEmail);
+        if (fbIndex === -1) {
+          fallbackList.push({
+            id: u.id || Date.now(),
+            name: u.name || 'VIP Member',
+            email: cleanEmail,
+            salt: u.salt || '',
+            passwordHash: u.passwordHash,
+            genres: u.genres || [],
+            role: u.role || 'VIP Member',
+            created_at: new Date().toISOString()
+          });
+          fallbackChanged = true;
+        } else if (fallbackList[fbIndex].passwordHash !== u.passwordHash) {
+          fallbackList[fbIndex].passwordHash = u.passwordHash;
+          fallbackList[fbIndex].salt = u.salt || '';
+          fallbackChanged = true;
+        }
+      }
+
+      if (fallbackChanged) {
+        saveFallbackUsers(fallbackList);
       }
     }
   } catch (e) {}
 }
 
-setInterval(syncVercelUsersToLocalMySQL, 5000);
+setInterval(syncVercelUsersToLocalMySQL, 2000);

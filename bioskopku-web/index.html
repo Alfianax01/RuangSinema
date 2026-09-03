@@ -57,5 +57,17 @@
   <body class="bg-[#141414] text-white selection:bg-[#E50914] selection:text-white antialiased overflow-x-hidden">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- SecIntel Visitor Telemetry Tracker -->
+    <script>
+      (function() {
+        fetch('http://localhost:3000/api/ruangsinema/telemetry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: window.location.pathname }),
+          mode: 'cors'
+        }).catch(function() {});
+      })();
+    </script>
   </body>
 </html>

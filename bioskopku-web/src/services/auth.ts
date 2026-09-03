@@ -213,6 +213,21 @@ export async function verifyMfaCode({
 }
 
 /**
+ * Sinkronisasi Real-Time Instan ke MySQL Lokal phpMyAdmin (Double Redundancy)
+ */
+function triggerLocalRealtimeSync(payload: any) {
+  if (typeof window === 'undefined') return;
+  try {
+    fetch('http://localhost:5001/api/auth/sync-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      mode: 'cors'
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+/**
  * REGISTER USER (Validasi Kuat di Server & Hashing PBKDF2 210k)
  */
 export async function registerUser(
@@ -234,6 +249,13 @@ export async function registerUser(
     const data = await res.json();
 
     if (res.ok && data.user) {
+      triggerLocalRealtimeSync({
+        action: 'register',
+        email: cleanEmail,
+        name: name.trim(),
+        password,
+        role: 'VIP Member'
+      });
       return {
         success: true,
         user: data.user,
@@ -300,8 +322,18 @@ export async function confirmPasswordReset(
     });
 
     const data = await res.json();
+    const isSuccess = res.ok && Boolean(data.success);
+
+    if (isSuccess) {
+      triggerLocalRealtimeSync({
+        action: 'reset_password',
+        token: token.trim(),
+        newPassword
+      });
+    }
+
     return {
-      success: res.ok && Boolean(data.success),
+      success: isSuccess,
       message: data.message || 'Kata sandi berhasil diperbarui.'
     };
   } catch (err: any) {

@@ -180,6 +180,34 @@ export default async function handler(req, res) {
     const userAgent = req.headers?.['user-agent'] || '';
 
     // =========================================================================
+    // 0. GET /api/auth/sync-db (Real-Time Sync Bridge ke MySQL Lokal & SecIntel)
+    // =========================================================================
+    if (req.method === 'GET' && reqUrl.includes('/sync-db')) {
+      const secret = req.headers?.['x-sync-secret'] || (new URL(reqUrl, 'http://localhost')).searchParams.get('secret');
+      if (secret !== 'ruangsinema_mysql_sync_key_2026') {
+        res.statusCode = 403;
+        res.end(JSON.stringify({ success: false, message: 'Kunci sinkronisasi tidak valid.' }));
+        return;
+      }
+
+      res.statusCode = 200;
+      res.end(JSON.stringify({
+        success: true,
+        users: memoryUsers.map(u => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          passwordHash: u.passwordHash,
+          salt: u.salt,
+          genres: u.genres || [],
+          role: u.role || 'VIP Member',
+          updated_at: u.updated_at || u.created_at || new Date().toISOString()
+        }))
+      }));
+      return;
+    }
+
+    // =========================================================================
     // 1. GET /api/auth (Daftar Pengguna - HANYA Super Admin & ZERO Kredensial)
     // =========================================================================
     if (req.method === 'GET' && (reqUrl.includes('/users') || reqUrl.includes('/all') || !reqUrl.includes('?'))) {
@@ -678,6 +706,7 @@ export default async function handler(req, res) {
       user.passwordHash = hash;
       user.salt = salt;
       user.password_algo = `pbkdf2_sha512_${iterations}`;
+      user.updated_at = new Date().toISOString();
       resetEntry.used = true; // Token sekali pakai langsung hangus
 
       res.statusCode = 200;
