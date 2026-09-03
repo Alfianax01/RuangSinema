@@ -84,7 +84,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       // 3. MODE FORGOT (KIRIM TOKEN PEMULIHAN)
       else if (mode === 'forgot') {
         const res = await requestPasswordReset(email);
-        setSuccessMsg(res.message || 'Jika email terdaftar, petunjuk pemulihan kata sandi telah dikirimkan.');
+        if (res.success) {
+          if (res.previewToken) {
+            setResetToken(res.previewToken);
+            setMode('reset');
+            setSuccessMsg('Token pemulihan berhasil dibuat! Silakan masukkan kata sandi baru Anda di bawah.');
+          } else {
+            setSuccessMsg(res.message || 'Jika email terdaftar, petunjuk pemulihan kata sandi telah dikirimkan ke email Anda.');
+          }
+        } else {
+          setErrorMsg(res.message || 'Gagal memproses permintaan pemulihan kata sandi.');
+        }
       } 
       // 4. MODE RESET (KONFIRMASI DENGAN TOKEN ACAK)
       else if (mode === 'reset') {

@@ -256,7 +256,7 @@ export async function registerUser(
 /**
  * MINTA TOKEN RESET PASSWORD (15 Menit via Email)
  */
-export async function requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+export async function requestPasswordReset(email: string): Promise<{ success: boolean; message: string; previewToken?: string }> {
   const cleanEmail = email.toLowerCase().trim();
   const authUrl = getAuthApiUrl();
 
@@ -265,18 +265,19 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: cleanEmail }),
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(6000)
     });
 
     const data = await res.json();
     return {
-      success: true,
-      message: data.message || 'Jika email terdaftar, petunjuk pemulihan kata sandi telah dikirimkan.'
+      success: res.ok && Boolean(data.success),
+      message: data.message || 'Jika email terdaftar, petunjuk pemulihan kata sandi telah dikirimkan.',
+      previewToken: data.previewToken
     };
   } catch (err) {
     return {
-      success: true,
-      message: 'Jika email terdaftar, petunjuk pemulihan kata sandi telah dikirimkan.'
+      success: false,
+      message: 'Gagal terhubung ke server pemulihan kata sandi.'
     };
   }
 }

@@ -1,7 +1,4 @@
-/**
- * RuangSinema Hardened Authentication Endpoint
- * Standar: OWASP 2024, NIST SP 800-63B, Anti-Brute-Force, 2FA/MFA, Zero Leakage
- */
+import crypto from 'crypto';
 
 import {
   hashPassword,
@@ -564,6 +561,7 @@ export default async function handler(req, res) {
       const { email } = body;
       const cleanEmail = normalizeEmail(email);
 
+      let generatedPreviewToken = null;
       if (cleanEmail) {
         const user = memoryUsers.find(u => u.email === cleanEmail);
         if (user) {
@@ -577,6 +575,9 @@ export default async function handler(req, res) {
           });
 
           sendPasswordResetEmail({ toEmail: cleanEmail, resetToken: rawToken });
+          if (!process.env.SMTP_HOST) {
+            generatedPreviewToken = rawToken;
+          }
         }
       }
 
@@ -584,6 +585,7 @@ export default async function handler(req, res) {
       res.statusCode = 200;
       res.end(JSON.stringify({
         success: true,
+        previewToken: generatedPreviewToken,
         message: 'Jika email terdaftar, petunjuk pemulihan kata sandi telah dikirimkan ke alamat email Anda.'
       }));
       return;
