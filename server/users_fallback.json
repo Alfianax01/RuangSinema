@@ -20,5 +20,45 @@
     "genres": [],
     "role": "VIP Member",
     "created_at": "2026-08-31T05:41:07.342Z"
+  },
+  {
+    "id": 1788315615803,
+    "name": "alfian",
+    "email": "azmialfian631@gmail.com",
+    "salt": "af99704af4305f5d2dfe7824a43035c3",
+    "passwordHash": "18795892b2faadf1e7e29eb7c9191c94bcab73f6edbbb1c69c872b8330500ebdba3fd795bfe915b260d16715852dc59555881ffa62149dee48043b13135c5e39",
+    "genres": [],
+    "role": "VIP Member",
+    "created_at": "2026-09-02T04:58:15.420Z"
+  },
+  {
+    "id": 1788315977367,
+    "name": "jaehewan",
+    "email": "azmialfian471@gmail.com",
+    "salt": "59782eba37abdd8518b26a776317126b",
+    "passwordHash": "5185ff3805c30a900ce10211a7cf6de35104dab222d90ce95dc81c3ec8e67c82869e6072584d3a2b9e64a8ea57e7e464a0b3ec2dc925e7240091cb88b25751ac",
+    "genres": [],
+    "role": "VIP Member",
+    "created_at": "2026-09-02T04:58:15.580Z"
+  },
+  {
+    "id": 1788318378687,
+    "name": "Jaehwwan",
+    "email": "kiryuukafka@gmail.com",
+    "salt": "fb2e77e59ba05a9aacaf1d6bc9e3aae5",
+    "passwordHash": "a6a9c03c56ce49c34e8916915f8a8d7e03be90b7e62e7d5ebbbe06e348a717c725267e922df9a0398902694c2c28b681d92f4f4275d5149e1624f8659ea7541b",
+    "genres": [],
+    "role": "VIP Member",
+    "created_at": "2026-09-02T04:58:15.793Z"
+  },
+  {
+    "id": 1788324091501,
+    "name": "anjay",
+    "email": "narutouzumaki15580@gmail.com",
+    "salt": "b596886d750fb2ff1b8de56f81685fc4",
+    "passwordHash": "f9d83a5960aa0b030331442ddeadf37c31ef0f62ce53b9810cf7f0698ed1445dc66699167f97483181b987f9eff099893b882fe107aa107be462b49e1a4d4775",
+    "genres": [],
+    "role": "VIP Member",
+    "created_at": "2026-09-02T04:58:15.857Z"
   }
 ]

@@ -1,3 +1,12 @@
+
+// Process Safety Guards to prevent any crash
+process.on('uncaughtException', (err) => {
+  console.warn('⚠️ [Safe Server Guard] Caught unhandled exception:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.warn('⚠️ [Safe Server Guard] Caught unhandled rejection:', reason);
+});
+
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
