@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Play, Star } from 'lucide-react';
+import { Play, Star, Info } from 'lucide-react';
 import type { MovieDetails, Movie } from '../types';
 
 interface HeroBannerProps {
@@ -20,99 +19,124 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
     if (!movies.length) return;
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % movies.length);
-    }, 7000);
+    }, 8000);
     return () => clearInterval(timer);
   }, [movies.length]);
 
   if (!movies || movies.length === 0) return null;
   const current = movies[currentIndex] || movies[0];
-
   const isSeries = current.type === 'series';
 
   return (
-    <div className="relative w-full h-[520px] sm:h-[620px] lg:h-[700px] overflow-hidden bg-[#141414] -mt-16 sm:-mt-18 select-none">
+    <div className="relative w-full h-[580px] sm:h-[680px] lg:h-[760px] overflow-hidden bg-[#08080a] select-none -mt-16 sm:-mt-18">
       
-      {/* Cinematic Ultra-Wide Backdrop */}
+      {/* Background Poster with Subtle Zoom Motion */}
       <div
-        className="absolute inset-0 bg-cover bg-center transition-all duration-1000 transform scale-100"
+        key={current._id}
+        className="absolute inset-0 bg-cover bg-center transition-all duration-1000 transform scale-105 animate-in fade-in"
         style={{
           backgroundImage: `url('${current.backdropImg || current.posterImg}')`,
         }}
       />
 
-      {/* IDLIX Signature Multi-Layer Dark Vignettes */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/50 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/70 to-transparent" />
-      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/80 to-transparent" />
+      {/* Asymmetrical High-Impact Angular Gradients */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-[#08080a]/60 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#08080a] via-[#08080a]/80 to-transparent" />
+      <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-[#08080a]/90 via-[#08080a]/40 to-transparent" />
+
+      {/* Diagonal Cyber Grid & Film Strip Accent Lines */}
+      <div className="absolute right-0 top-1/4 w-96 h-96 bg-[#FF1E27]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute left-1/3 bottom-10 w-72 h-72 bg-[#D4FF00]/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Content Container */}
-      <div className="relative z-10 max-w-7xl mx-auto h-full flex flex-col justify-end px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24 space-y-3 sm:space-y-4 max-w-4xl">
+      <div className="relative z-10 max-w-7xl mx-auto h-full flex flex-col justify-end px-4 sm:px-6 lg:px-8 pb-14 sm:pb-20 space-y-4">
         
-        {/* Category Pill: MOVIE / SERIES */}
-        <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 rounded bg-[#E50914] text-white font-black text-[10px] sm:text-[11px] tracking-wider uppercase shadow-md">
-            {isSeries ? 'SERIES' : 'MOVIE'}
-          </span>
+        {/* Top Kicker: Electric Cyber Lime Angled Badge */}
+        <div className="flex items-center gap-2.5">
+          <div className="skew-tag bg-[#D4FF00] px-3 py-1 shadow-md shadow-[#D4FF00]/30">
+            <span className="skew-tag-content font-mono font-black text-black text-[10px] sm:text-xs uppercase tracking-widest flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-black animate-ping" />
+              EXCLUSIVE PREMIERE
+            </span>
+          </div>
+
+          <div className="skew-tag bg-white/10 px-2.5 py-1 border border-white/15">
+            <span className="skew-tag-content font-mono font-bold text-white text-[10px] sm:text-xs uppercase tracking-wider">
+              {isSeries ? 'TV SERIES' : 'MOVIE'}
+            </span>
+          </div>
+
+          <div className="skew-tag bg-[#FF1E27]/20 border border-[#FF1E27]/40 px-2.5 py-1">
+            <span className="skew-tag-content font-mono font-bold text-[#FF1E27] text-[10px] sm:text-xs tracking-wider">
+              60 FPS HD
+            </span>
+          </div>
         </div>
 
-        {/* Italic Tagline */}
-        <p className="text-xs sm:text-sm text-gray-300 italic font-serif">
-          {(current as any).tagline ? `"${(current as any).tagline}"` : 'Nikmati tayangan favorit Anda dengan subtitle Indonesia terlengkap.'}
-        </p>
+        {/* Massive Condensed Headline Font (Extreme Contrast) */}
+        <div className="space-y-1">
+          <h1 className="font-display text-5xl sm:text-7xl lg:text-9xl uppercase tracking-wider leading-[0.88] text-white drop-shadow-2xl">
+            {current.title}
+          </h1>
 
-        {/* Stylized Large Title */}
-        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-none drop-shadow-xl uppercase">
-          {current.title}
-        </h1>
-
-        {/* Metadata Line: Star, Year, Duration, Genres */}
-        <div className="flex items-center flex-wrap gap-2 text-xs font-semibold text-gray-300">
-          <div className="flex items-center gap-1 text-[#F5C518] font-black">
-            <Star className="w-3.5 h-3.5 fill-[#F5C518]" />
-            <span>{current.rating || '8.2'}</span>
+          {/* Metadata Ribbon: Rating, Year, Duration, Audio */}
+          <div className="flex items-center flex-wrap gap-2.5 text-xs font-mono pt-1 text-zinc-300">
+            <div className="flex items-center gap-1 bg-[#D4FF00]/15 border border-[#D4FF00]/40 px-2 py-0.5 rounded text-[#D4FF00] font-black">
+              <Star className="w-3.5 h-3.5 fill-[#D4FF00]" />
+              <span>{current.rating || '8.8'}</span>
+            </div>
+            <span className="text-zinc-600 font-bold">/</span>
+            <span className="text-white font-bold">{current.year || '2025'}</span>
+            <span className="text-zinc-600 font-bold">/</span>
+            <span className="text-zinc-300">{isSeries ? 'Multi-Episode' : current.duration || '2j 10m'}</span>
+            <span className="text-zinc-600 font-bold">/</span>
+            <span className="text-zinc-300">{current.genres?.slice(0, 3).join(' · ') || 'Action · Drama'}</span>
           </div>
-          <span>·</span>
-          <span className="text-white font-bold">{current.year || '2024'}</span>
-          <span>·</span>
-          <span>{isSeries ? 'TV Series' : current.duration || '1h 45m'}</span>
-          <span>·</span>
-          <span className="text-gray-300">
-            {current.genres?.slice(0, 3).join(', ') || 'Action, Adventure'}
-          </span>
         </div>
 
         {/* Synopsis */}
-        <p className="text-xs sm:text-sm text-gray-300 max-w-2xl line-clamp-2 sm:line-clamp-3 leading-relaxed font-normal drop-shadow">
+        <p className="text-xs sm:text-sm text-zinc-300 max-w-xl line-clamp-2 sm:line-clamp-3 leading-relaxed font-medium drop-shadow-md">
           {current.synopsis}
         </p>
 
-        {/* Action Button: Watch Now */}
-        <div className="pt-2">
+        {/* Energetic CTAs: Pulse Glow & Micro-Interactions */}
+        <div className="pt-2 flex items-center gap-3">
           <button
             onClick={() => onSelectMovie(current)}
-            className="px-7 py-3 rounded-lg bg-[#E50914] hover:bg-[#F40612] text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-[#E50914]/40 active:scale-95 transition-all"
+            className="group relative px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#FF1E27] via-[#FF2E38] to-[#D4FF00] text-black font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-3 shadow-2xl shadow-[#FF1E27]/40 animate-pulse-glow active:scale-95 transition-all"
           >
-            <Play className="w-4.5 h-4.5 fill-white stroke-none ml-0.5" />
-            <span>Watch Now</span>
+            <div className="w-6 h-6 rounded-full bg-black/90 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+              <Play className="w-3.5 h-3.5 fill-white stroke-none ml-0.5 group-hover:translate-x-0.5 transition-transform" />
+            </div>
+            <span className="font-extrabold text-white group-hover:tracking-widest transition-all">
+              Watch Now
+            </span>
+          </button>
+
+          <button
+            onClick={() => onSelectMovie(current)}
+            className="px-6 py-3.5 rounded-xl bg-[#121217]/90 hover:bg-[#1a1a22] text-zinc-200 hover:text-white border border-white/10 hover:border-white/30 font-bold text-xs sm:text-sm flex items-center gap-2 transition-all"
+          >
+            <Info className="w-4 h-4 text-zinc-400" />
+            <span>Detail Sinema</span>
           </button>
         </div>
 
-        {/* IDLIX Slider Indicator (Pill Bar + Dots) */}
-        {movies.length > 1 && (
-          <div className="flex items-center gap-1.5 pt-4">
-            {movies.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrentIndex(idx)}
-                className={`h-1 rounded-full transition-all duration-300 ${
-                  idx === currentIndex 
-                    ? 'w-7 bg-[#E50914]' 
-                    : 'w-2 bg-white/30 hover:bg-white/60'
-                }`}
-              />
-            ))}
-          </div>
-        )}
+        {/* Slide Indicators: Angled Slash Bars (Goodbye Round Dots!) */}
+        <div className="flex items-center gap-2 pt-2">
+          {movies.slice(0, 6).map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentIndex(idx)}
+              className={`h-1.5 transition-all duration-300 skew-tag ${
+                currentIndex === idx
+                  ? 'w-10 bg-[#D4FF00] shadow-[0_0_8px_#D4FF00]'
+                  : 'w-4 bg-white/20 hover:bg-white/40'
+              }`}
+              title={`Slide ${idx + 1}`}
+            />
+          ))}
+        </div>
 
       </div>
     </div>

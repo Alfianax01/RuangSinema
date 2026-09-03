@@ -182,3 +182,4 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify({ success: false, message: 'Endpoint keamanan tidak ditemukan.' }));
 }
+

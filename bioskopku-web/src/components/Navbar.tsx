@@ -48,7 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
-  const navPills = [
+  const navCategories = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'movie', label: 'Movies', icon: Film },
     { id: 'series', label: 'TV Series', icon: Tv },
@@ -56,11 +56,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'kdrama', label: 'Drakor', icon: Globe },
     { id: 'dracin', label: 'Dracin', icon: Globe },
     { id: 'anime', label: 'Anime', icon: Globe },
-    { id: 'library', label: 'Collections', icon: Layers, badge: savedCount },
+    { id: 'library', label: 'Library', icon: Layers, badge: savedCount },
     { id: 'genres', label: 'Genres', icon: Tag },
   ];
 
-  const handlePillClick = (id: string) => {
+  const handleCategoryClick = (id: string) => {
     if (onSelectCategory) {
       onSelectCategory(id);
     } else {
@@ -70,7 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
   };
 
-  const isPillActive = (id: string) => {
+  const isCategoryActive = (id: string) => {
     if (id === 'home') {
       return activeTab === 'home' || selectedCategory === 'home' || selectedCategory === 'all';
     }
@@ -86,57 +86,56 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className={`sticky top-0 z-50 w-full transition-all duration-300 ${
       isScrolled 
-        ? 'bg-[#121212]/95 backdrop-blur-md border-b border-white/10 shadow-2xl' 
-        : 'bg-gradient-to-b from-black/95 via-black/80 to-[#121212]/90 backdrop-blur-md border-b border-white/10'
+        ? 'bg-[#08080a]/95 backdrop-blur-xl border-b border-white/10 shadow-2xl' 
+        : 'bg-gradient-to-b from-[#08080a] via-[#08080a]/90 to-transparent backdrop-blur-md border-b border-white/5'
     }`}>
       {/* Top Header Row */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between gap-4">
         
-        {/* Left: Brand Logo */}
+        {/* Left: Brand Logo (Angled Kinetic Cyber Badge) */}
         <div 
-          onClick={() => handlePillClick('home')}
-          className="flex items-center gap-2.5 cursor-pointer select-none group shrink-0"
+          onClick={() => handleCategoryClick('home')}
+          className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
         >
-          <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#FF2E38] via-[#E50914] to-[#990008] p-0.5 shadow-lg shadow-[#E50914]/40 group-hover:shadow-[#E50914]/70 group-hover:scale-105 transition-all duration-300">
-            <div className="w-full h-full bg-[#121212] rounded-[10px] flex items-center justify-center overflow-hidden">
-              <svg viewBox="0 0 512 512" className="w-6 h-6 sm:w-6.5 sm:h-6.5 transform group-hover:rotate-6 transition-transform">
-                <path d="M140 130 C140 110, 160 98, 178 108 L386 234 C404 245, 404 267, 386 278 L178 404 C160 414, 140 402, 140 382 Z" fill="#E50914"/>
-                <path d="M165 145 L205 145 L185 205 L145 205 Z" fill="#FFFFFF" opacity="0.9"/>
-                <path d="M225 145 L265 145 L245 205 L205 205 Z" fill="#FFFFFF" opacity="0.9"/>
-                <path d="M285 145 L325 145 L305 205 L265 205 Z" fill="#FFFFFF" opacity="0.9"/>
-                <polygon points="230,210 320,256 230,302" fill="#FFFFFF"/>
-              </svg>
+          <div className="relative transform -rotate-2 group-hover:rotate-0 transition-transform duration-300">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF1E27] to-[#B30006] p-0.5 shadow-lg shadow-[#FF1E27]/40">
+              <div className="w-full h-full bg-[#0d0d12] rounded-[10px] flex items-center justify-center border border-white/10">
+                <span className="font-display text-xl text-[#D4FF00] tracking-wider font-black -skew-x-6">//</span>
+              </div>
             </div>
           </div>
+
           <div className="flex flex-col">
-            <span className="text-xl sm:text-2xl font-black tracking-tighter text-[#E50914] uppercase drop-shadow leading-none">
-              RUANG<span className="text-white">SINEMA</span>
-            </span>
-            <span className="text-[9px] font-bold tracking-widest text-zinc-400 uppercase leading-none mt-0.5 hidden sm:block">
-              CINEMA STREAMING
+            <div className="flex items-center text-2xl sm:text-3xl font-display tracking-wider uppercase leading-none">
+              <span className="text-white drop-shadow">RUANG</span>
+              <span className="text-[#FF1E27] ml-0.5 drop-shadow">SINEMA</span>
+              <span className="w-2 h-2 rounded-full bg-[#D4FF00] ml-1 mb-1 animate-ping" />
+            </div>
+            <span className="text-[9px] font-mono tracking-widest text-zinc-400 uppercase -mt-1 hidden sm:block">
+              Bold Cinema Stream · 60 FPS
             </span>
           </div>
         </div>
 
-        {/* Right: Search, Download App, and Profile */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Right: UNIFIED CONTROL DOCK (No More Floating Elements!) */}
+        <div className="flex items-center bg-[#121217]/90 border border-white/10 rounded-xl p-1 shadow-xl backdrop-blur-md">
           
-          {/* Search Bar */}
+          {/* 1. Search Box / Trigger */}
           {isSearchOpen ? (
-            <form onSubmit={handleSearchSubmit} className="relative flex items-center">
-              <input
+            <form onSubmit={handleSearchSubmit} className="relative flex items-center animate-in fade-in">
+              <input 
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Cari film, drakor, artis..."
+                placeholder="Cari judul, drakor, genre..."
                 autoFocus
-                className="w-48 sm:w-72 px-3.5 py-1.5 pl-8 rounded-full bg-[#202020] border border-[#E50914] text-white text-xs placeholder-gray-400 focus:outline-none shadow-lg"
+                className="w-48 sm:w-64 px-3 py-1.5 pl-8 rounded-lg bg-[#1a1a24] border border-[#D4FF00] text-white text-xs placeholder-zinc-400 focus:outline-none shadow-inner"
               />
-              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-[#D4FF00] absolute left-2.5 pointer-events-none" />
               <button 
                 type="button" 
                 onClick={() => setIsSearchOpen(false)}
-                className="absolute right-2.5 text-gray-400 hover:text-white"
+                className="absolute right-2.5 text-zinc-400 hover:text-white"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -144,52 +143,64 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button
               onClick={() => setIsSearchOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white text-xs font-bold transition-all border border-white/10"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-white/5 text-xs font-semibold transition-all"
+              title="Cari Film"
             >
-              <Search className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Cari Sinema</span>
+              <Search className="w-3.5 h-3.5 text-[#D4FF00]" />
+              <span className="hidden md:inline font-mono text-[11px]">SEARCH</span>
             </button>
           )}
 
-          {/* Download APK Button */}
+          {/* Hairline Separator */}
+          <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
+
+          {/* 2. Download APK Action */}
           <a
             href="/ruangsinema.apk"
             download="RuangSinema.apk"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-xs font-black transition-all shadow-md active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-300 hover:text-[#D4FF00] hover:bg-white/5 transition-all"
             title="Download APK Android"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Download App</span>
+            <Download className="w-3.5 h-3.5 text-[#D4FF00]" />
+            <span className="hidden sm:inline font-mono text-[11px]">APK</span>
           </a>
 
-          {/* Profile / Account Dropdown */}
+          {/* Hairline Separator */}
+          <div className="w-px h-5 bg-white/10 mx-1" />
+
+          {/* 3. User Profile Dropdown */}
           <div className="relative">
             <button
               onClick={() => setIsAccountOpen(!isAccountOpen)}
-              className="flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-xs font-bold text-white transition-all"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/5 text-xs font-bold text-white transition-all"
             >
-              <div className="w-6 h-6 rounded-full bg-[#E50914] flex items-center justify-center text-white text-[11px] font-bold">
-                {user?.name ? user.name[0].toUpperCase() : <UserIcon className="w-3.5 h-3.5" />}
+              <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-[#FF1E27] to-[#D4FF00] p-0.5">
+                <div className="w-full h-full bg-[#08080a] rounded-[4px] flex items-center justify-center text-white text-[11px] font-black">
+                  {user?.name ? user.name[0].toUpperCase() : <UserIcon className="w-3 h-3 text-[#D4FF00]" />}
+                </div>
               </div>
-              <span className="hidden md:inline max-w-[100px] truncate">{user?.name || 'Member VIP'}</span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
+              <span className="hidden lg:inline max-w-[90px] truncate text-[11px] font-mono">{user?.name || 'VIP'}</span>
+              <ChevronDown className="w-3 h-3 text-zinc-400" />
             </button>
 
             {isAccountOpen && (
-              <div className="absolute right-0 mt-2 w-52 bg-[#1c1c1c] border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95">
-                <div className="px-4 py-2 border-b border-white/10">
+              <div className="absolute right-0 mt-2 w-56 bg-[#121217] border border-white/15 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95">
+                <div className="px-4 py-2.5 border-b border-white/10 space-y-0.5">
                   <p className="text-xs font-black text-white truncate">{user?.name || 'Member VIP'}</p>
-                  <p className="text-[10px] text-emerald-400 font-bold">👑 VIP Member Aktif</p>
+                  <p className="text-[10px] text-[#D4FF00] font-mono uppercase tracking-wider flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4FF00]" />
+                    VIP Streamer Active
+                  </p>
                 </div>
                 <button
                   onClick={() => {
                     onChangeTab('profile');
                     setIsAccountOpen(false);
                   }}
-                  className="w-full px-4 py-2 text-left text-xs text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-xs text-zinc-300 hover:bg-white/5 hover:text-white flex items-center gap-2"
                 >
-                  <UserIcon className="w-3.5 h-3.5" />
-                  <span>Profil & Pengaturan</span>
+                  <UserIcon className="w-3.5 h-3.5 text-[#D4FF00]" />
+                  <span>Akun & Keamanan 2FA</span>
                 </button>
                 {onLogout && (
                   <button
@@ -197,7 +208,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onLogout();
                       setIsAccountOpen(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 border-t border-white/5"
+                    className="w-full px-4 py-2.5 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 border-t border-white/10"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>Keluar Akun</span>
@@ -211,29 +222,35 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       </div>
 
-      {/* Spacious Full-Width Horizontal Category Pill Bar (Active Highlight on EVERY single item) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 overflow-x-auto no-scrollbar flex items-center gap-2 border-t border-white/5">
-        {navPills.map((pill) => {
-          const active = isPillActive(pill.id);
-          const IconComp = pill.icon;
+      {/* Sub-Nav: UNDERLINE KINETIC TABS (Goodbye Uniform Pills!) */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-x-auto no-scrollbar flex items-center gap-1 sm:gap-2 border-t border-white/5">
+        {navCategories.map((item) => {
+          const active = isCategoryActive(item.id);
+          const IconComp = item.icon;
           return (
             <button
-              key={pill.id}
-              onClick={() => handlePillClick(pill.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black transition-all whitespace-nowrap shrink-0 ${
+              key={item.id}
+              onClick={() => handleCategoryClick(item.id)}
+              className={`group relative flex items-center gap-2 py-3 px-3.5 sm:px-4 text-xs font-bold tracking-wider uppercase transition-all whitespace-nowrap shrink-0 ${
                 active
-                  ? 'bg-[#E50914] text-white shadow-lg shadow-[#E50914]/40 scale-105 border border-[#E50914]'
-                  : 'bg-[#1c1c1c] text-gray-300 hover:text-white hover:bg-[#282828] border border-white/10'
+                  ? 'text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <IconComp className={`w-3.5 h-3.5 ${active ? 'text-white' : 'text-gray-400'}`} />
-              <span>{pill.label}</span>
-              {pill.badge !== undefined && pill.badge > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
-                  active ? 'bg-white text-[#E50914]' : 'bg-[#E50914] text-white'
+              <IconComp className={`w-3.5 h-3.5 transition-colors ${active ? 'text-[#D4FF00]' : 'text-zinc-500 group-hover:text-zinc-300'}`} />
+              <span className="font-mono text-[11px] sm:text-xs font-bold">{item.label}</span>
+              
+              {item.badge !== undefined && item.badge > 0 && (
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-black ${
+                  active ? 'bg-[#D4FF00] text-black font-black' : 'bg-[#FF1E27] text-white'
                 }`}>
-                  {pill.badge}
+                  {item.badge}
                 </span>
+              )}
+
+              {/* Glowing Active Underline Indicator with Slanted End */}
+              {active && (
+                <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-[#FF1E27] via-[#D4FF00] to-[#D4FF00] shadow-[0_0_12px_#D4FF00]" />
               )}
             </button>
           );

@@ -200,3 +200,4 @@ export function sanitizeUser(user) {
     created_at: user.created_at
   };
 }
+

@@ -93,3 +93,4 @@ async function deliverEmail({ to, subject, html }) {
   console.log(`📨 [Email Simulated] To: ${to} | Subject: ${subject}`);
   return { delivered: false, simulated: true };
 }
+
