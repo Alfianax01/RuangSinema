@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `name` VARCHAR(100) NOT NULL,
   `email` VARCHAR(150) NOT NULL UNIQUE,
   `password` VARCHAR(255) NOT NULL,
+  `salt` VARCHAR(64) NULL,
+  `iterations` INT NOT NULL DEFAULT 10000,
   `genres` TEXT NULL,
   `avatar` VARCHAR(255) NULL,
   `role` VARCHAR(50) DEFAULT 'VIP Member',

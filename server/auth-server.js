@@ -9,6 +9,11 @@ const PORT = process.env.PORT || 5001;
 const MAX_PAYLOAD_BYTES = 1024 * 1024; // 1 MB max payload
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 30;
+const PBKDF2_ITERATIONS = 210000;
+const ALLOWED_ORIGINS = (process.env.AUTH_ALLOWED_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
 
 // MySQL Database Configuration (phpMyAdmin / Laragon / XAMPP / Remote Cloud MySQL)
 const DB_CONFIG = {
@@ -61,7 +66,7 @@ async function initDatabase() {
     // 2. Connect pool to bioskopku_db
     dbPool = mysql.createPool(DB_CONFIG);
 
-    // 3. Create users table for phpMyAdmin
+    // 3. Create users table for phpMyAdmin (with legacy-table upgrade)
     await dbPool.query(`
       CREATE TABLE IF NOT EXISTS \`users\` (
         \`id\` BIGINT NOT NULL AUTO_INCREMENT,
@@ -69,6 +74,7 @@ async function initDatabase() {
         \`email\` VARCHAR(150) NOT NULL UNIQUE,
         \`password\` VARCHAR(255) NOT NULL,
         \`salt\` VARCHAR(64) NULL,
+        \`iterations\` INT NOT NULL DEFAULT 10000,
         \`genres\` TEXT NULL,
         \`role\` VARCHAR(50) DEFAULT 'VIP Member',
         \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -76,6 +82,12 @@ async function initDatabase() {
         PRIMARY KEY (\`id\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    try {
+      await dbPool.query('ALTER TABLE `users` ADD COLUMN `iterations` INT NOT NULL DEFAULT 10000');
+    } catch (e) {
+      // Column already exists
+    }
 
     isDbConnected = true;
     console.log(`✅ [MySQL phpMyAdmin] Connected successfully to database "${DB_CONFIG.database}" on port ${DB_CONFIG.port}`);
@@ -86,8 +98,8 @@ async function initDatabase() {
       const fallbackList = getFallbackUsers();
       for (const u of fallbackList) {
         await dbPool.query(
-          'INSERT IGNORE INTO users (name, email, password, salt, genres, role) VALUES (?, ?, ?, ?, ?, ?)',
-          [u.name, u.email, u.passwordHash || u.password, u.salt || '', JSON.stringify(u.genres || []), u.role || 'VIP Member']
+          'INSERT IGNORE INTO users (name, email, password, salt, iterations, genres, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [u.name, u.email, u.passwordHash || u.password, u.salt || '', u.iterations || 10000, JSON.stringify(u.genres || []), u.role || 'VIP Member']
         );
       }
       console.log(`🔄 [MySQL phpMyAdmin] Initialized ${fallbackList.length} seed users into MySQL database.`);
@@ -119,15 +131,15 @@ function isRateLimited(ip) {
 }
 
 // Password Hashing (PBKDF2 with SHA-512)
-function hashPassword(password, salt) {
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+function hashPassword(password, salt, iterations = PBKDF2_ITERATIONS) {
+  return crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
 }
 
-function verifyPassword(password, salt, storedHash) {
-  if (!salt) {
-    return password === storedHash;
+function verifyPassword(password, salt, storedHash, iterations = 10000) {
+  if (!salt || !storedHash) {
+    return false;
   }
-  const calculatedHash = hashPassword(password, salt);
+  const calculatedHash = hashPassword(password, salt, iterations);
   try {
     return crypto.timingSafeEqual(Buffer.from(calculatedHash, 'hex'), Buffer.from(storedHash, 'hex'));
   } catch (e) {
@@ -140,6 +152,31 @@ function sanitizeString(str, maxLen = 50) {
   return str.replace(/<[^>]*>?/gm, '').trim().substring(0, maxLen);
 }
 
+function isStrongPassword(password) {
+  return typeof password === 'string'
+    && password.length >= 10
+    && /[A-Za-z]/.test(password)
+    && /[0-9]/.test(password);
+}
+
+function isLoopback(ip) {
+  const clean = String(ip).split(',')[0].trim().replace(/^::ffff:/, '');
+  return clean === '127.0.0.1' || clean === '::1';
+}
+
+function isTrustedAdmin(req, clientIp) {
+  const configuredKey = process.env.ADMIN_API_KEY;
+  if (configuredKey) {
+    const provided = req.headers['x-admin-key'];
+    if (typeof provided === 'string'
+      && provided.length === configuredKey.length
+      && crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(configuredKey))) {
+      return true;
+    }
+  }
+  return isLoopback(clientIp);
+}
+
 function isValidEmail(email) {
   if (typeof email !== 'string') return false;
   const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -150,9 +187,13 @@ const server = http.createServer(async (req, res) => {
   const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
 
   // Security & CORS Headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Key');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
@@ -217,6 +258,12 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        if (!isStrongPassword(rawPassword)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'error', message: 'Kata sandi minimal 10 karakter dan harus memuat huruf serta angka.' }));
+          return;
+        }
+
         const salt = crypto.randomBytes(16).toString('hex');
         const passwordHash = hashPassword(rawPassword, salt);
         let insertedId = Date.now();
@@ -232,8 +279,8 @@ const server = http.createServer(async (req, res) => {
             }
 
             const [result] = await dbPool.query(
-              'INSERT INTO users (name, email, password, salt, genres, role) VALUES (?, ?, ?, ?, ?, ?)',
-              [name, email, passwordHash, salt, JSON.stringify([]), 'VIP Member']
+              'INSERT INTO users (name, email, password, salt, iterations, genres, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              [name, email, passwordHash, salt, PBKDF2_ITERATIONS, JSON.stringify([]), 'VIP Member']
             );
             insertedId = result.insertId;
             console.log(`✨ [MySQL phpMyAdmin] Inserted new user #${insertedId} (${email}) into table 'users'`);
@@ -251,6 +298,7 @@ const server = http.createServer(async (req, res) => {
             email,
             salt,
             passwordHash,
+            iterations: PBKDF2_ITERATIONS,
             genres: [],
             role: 'VIP Member',
             created_at: new Date().toISOString()
@@ -310,6 +358,7 @@ const server = http.createServer(async (req, res) => {
               email: found.email,
               password: found.passwordHash || found.password,
               salt: found.salt,
+              iterations: found.iterations || 10000,
               genres: JSON.stringify(found.genres || []),
               role: found.role || 'VIP Member'
             };
@@ -317,12 +366,13 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (!userRecord) {
+          hashPassword(rawPassword, 'ruangsinema-dummy-salt', 10000);
           res.writeHead(401, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ status: 'error', message: 'Email atau kata sandi salah.' }));
           return;
         }
 
-        const isValid = verifyPassword(rawPassword, userRecord.salt, userRecord.password);
+        const isValid = verifyPassword(rawPassword, userRecord.salt, userRecord.password, userRecord.iterations);
         if (!isValid) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ status: 'error', message: 'Email atau kata sandi salah.' }));
@@ -362,6 +412,12 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        if (!isStrongPassword(newPassword)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'error', message: 'Kata sandi minimal 10 karakter dan harus memuat huruf serta angka.' }));
+          return;
+        }
+
         const email = rawEmail.toLowerCase().trim();
         const salt = crypto.randomBytes(16).toString('hex');
         const passwordHash = hashPassword(newPassword, salt);
@@ -371,8 +427,8 @@ const server = http.createServer(async (req, res) => {
         if (isDbConnected && dbPool) {
           try {
             const [result] = await dbPool.query(
-              'UPDATE users SET password = ?, salt = ? WHERE email = ?',
-              [passwordHash, salt, email]
+              'UPDATE users SET password = ?, salt = ?, iterations = ? WHERE email = ?',
+              [passwordHash, salt, PBKDF2_ITERATIONS, email]
             );
             if (result.affectedRows > 0) {
               updated = true;
@@ -387,6 +443,7 @@ const server = http.createServer(async (req, res) => {
         if (found) {
           found.salt = salt;
           found.passwordHash = passwordHash;
+          found.iterations = PBKDF2_ITERATIONS;
           saveFallbackUsers(fallbackUsers);
           updated = true;
         }
@@ -401,6 +458,12 @@ const server = http.createServer(async (req, res) => {
 
             // 5. SYNC FROM VERCEL / CLIENT TO MYSQL PHPMYADMIN
       if (pathname === '/api/auth/sync') {
+        if (!isTrustedAdmin(req, clientIp)) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'error', message: 'Akses ditolak.' }));
+          return;
+        }
+
         const incomingUsers = Array.isArray(data.users) ? data.users : (data.user ? [data.user] : (data.email ? [data] : []));
         let syncedCount = 0;
 
@@ -408,19 +471,23 @@ const server = http.createServer(async (req, res) => {
           const cleanEmail = (u.email || '').toLowerCase().trim();
           if (!cleanEmail) continue;
 
+          // Only pre-hashed credentials are accepted; never invent or accept a plaintext password here.
+          if (!u.salt || !u.passwordHash) continue;
+
           const name = u.name || 'VIP Member';
-          const salt = u.salt || crypto.randomBytes(16).toString('hex');
-          const passwordHash = u.passwordHash || (u.password ? hashPassword(u.password, salt) : hashPassword('123456', salt));
+          const salt = u.salt;
+          const passwordHash = u.passwordHash;
+          const iterations = u.iterations || 10000;
           const genres = JSON.stringify(u.genres || []);
           const role = u.role || 'VIP Member';
 
           if (isDbConnected && dbPool) {
             try {
               await dbPool.query(
-                `INSERT INTO users (name, email, password, salt, genres, role) 
-                 VALUES (?, ?, ?, ?, ?, ?) 
+                `INSERT INTO users (name, email, password, salt, iterations, genres, role) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?) 
                  ON DUPLICATE KEY UPDATE genres = VALUES(genres)`,
-                [name, cleanEmail, passwordHash, salt, genres, role]
+                [name, cleanEmail, passwordHash, salt, iterations, genres, role]
               );
               syncedCount++;
               console.log(`🔄 [MySQL phpMyAdmin] Synced user (${cleanEmail}) into table 'users'`);
@@ -434,7 +501,9 @@ const server = http.createServer(async (req, res) => {
           const existing = fallbackUsers.find(x => x.email === cleanEmail);
           if (existing) {
             existing.genres = u.genres || existing.genres;
-            if (u.passwordHash) existing.passwordHash = u.passwordHash;
+            existing.salt = salt;
+            existing.passwordHash = passwordHash;
+            existing.iterations = iterations;
           } else {
             fallbackUsers.push({
               id: u.id || Date.now(),
@@ -442,6 +511,7 @@ const server = http.createServer(async (req, res) => {
               email: cleanEmail,
               salt,
               passwordHash,
+              iterations,
               genres: u.genres || [],
               role,
               created_at: new Date().toISOString()
@@ -493,6 +563,12 @@ const server = http.createServer(async (req, res) => {
 
     // GET /api/auth/users
   if (pathname === '/api/auth/users') {
+    if (!isTrustedAdmin(req, clientIp)) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'error', message: 'Akses ditolak.' }));
+      return;
+    }
+
     if (isDbConnected && dbPool) {
       try {
         const [rows] = await dbPool.query('SELECT id, name, email, genres, role, created_at FROM users ORDER BY id DESC');
@@ -544,7 +620,13 @@ async function syncVercelUsersToLocalMySQL() {
   if (!isDbConnected || !dbPool) return;
 
   try {
-    const res = await fetch(VERCEL_USERS_API, { signal: AbortSignal.timeout(5000) });
+    const adminKey = process.env.ADMIN_API_KEY;
+    if (!adminKey) return;
+
+    const res = await fetch(VERCEL_USERS_API, {
+      headers: { 'X-Admin-Key': adminKey },
+      signal: AbortSignal.timeout(5000),
+    });
     if (res.ok) {
       const data = await res.json();
       const users = data.users || [];
@@ -553,9 +635,11 @@ async function syncVercelUsersToLocalMySQL() {
         const cleanEmail = (u.email || '').toLowerCase().trim();
         if (!cleanEmail) continue;
 
+        if (!u.salt || !u.passwordHash) continue;
+
         const name = u.name || 'VIP Member';
-        const salt = u.salt || crypto.randomBytes(16).toString('hex');
-        const passwordHash = u.passwordHash || (u.password ? hashPassword(u.password, salt) : hashPassword('123456', salt));
+        const salt = u.salt;
+        const passwordHash = u.passwordHash;
         const genres = JSON.stringify(u.genres || []);
         const role = u.role || 'VIP Member';
 

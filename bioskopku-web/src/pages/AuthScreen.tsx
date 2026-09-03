@@ -9,6 +9,12 @@ interface AuthScreenProps {
 
 type AuthMode = 'login' | 'register' | 'forgot';
 
+const PASSWORD_RULE = 'Kata sandi minimal 10 karakter dan harus memuat huruf serta angka.';
+
+function isStrongPassword(value: string): boolean {
+  return value.length >= 10 && /[A-Za-z]/.test(value) && /[0-9]/.test(value);
+}
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   const [mode, setMode] = useState<AuthMode>('login');
   const [name, setName] = useState('');
@@ -36,6 +42,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           setErrorMsg(res.message || 'Email atau kata sandi salah.');
         }
       } else if (mode === 'register') {
+        if (!isStrongPassword(password)) {
+          setErrorMsg(PASSWORD_RULE);
+          setLoading(false);
+          return;
+        }
         const res = await registerUser(name, email, password);
         if (res.success) {
           setMode('login');
@@ -45,8 +56,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           setErrorMsg(res.message || 'Gagal mendaftar.');
         }
       } else if (mode === 'forgot') {
-        if (password.length < 4) {
-          setErrorMsg('Kata sandi baru minimal 4 karakter.');
+        if (!isStrongPassword(password)) {
+          setErrorMsg(PASSWORD_RULE);
           setLoading(false);
           return;
         }
@@ -118,7 +129,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           </div>
           <p className="text-xs text-zinc-400">
             {mode === 'login' && 'Nonton streaming film bioskop, Drakor & Dracin HD Sub Indo'}
-            {mode === 'register' && 'Buat akun gratis untuk simpan playlist & akses streaming HD'}
+            {mode === 'register' && 'Buat akun gratis untuk simpan playlist & akses streaming HD. ' + PASSWORD_RULE}
             {mode === 'forgot' && 'Masukkan email terdaftar dan buat kata sandi baru Anda'}
           </p>
         </div>
