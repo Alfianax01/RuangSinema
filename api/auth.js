@@ -1,25 +1,36 @@
 import crypto from 'crypto';
 
+const PBKDF2_ITERATIONS = 210000;
+const PBKDF2_KEYLEN = 64;
+const PBKDF2_DIGEST = 'sha512';
+const DUMMY_SALT = 'ruangsinema-dummy-salt';
+
+const ALLOWED_ORIGINS = (process.env.AUTH_ALLOWED_ORIGINS || 'https://ruang-sinema.vercel.app,http://localhost:5173,http://127.0.0.1:5173')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 let memoryUsers = [
   {
-    id: 1,
-    name: 'Alfian',
+    id: 1788153223537,
+    name: 'alfian',
     email: 'azmialfian487@gmail.com',
-    salt: 'e92a8310cba489f0',
-    passwordHash: '8b7f8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b',
-    genres: ['Drakor', 'Series', 'Action'],
+    salt: '21787e2d1ef9fa432aa4d799e1dbca28',
+    passwordHash: 'ee8b864417be0be17ae8cd4364cf303467d5c21c4f44d912cf3ce5d2989b58e5ed10caad746801edabb65ce0bc6f08daca0e21e074416aa667bbef31264137bd',
+    iterations: 10000,
+    genres: ['Series'],
     role: 'Super Admin',
-    created_at: '2026-09-01T00:00:00.000Z'
+    created_at: '2026-08-31T05:13:43.537Z'
   }
 ];
 
-function hashPassword(password, salt) {
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+function hashPassword(password, salt, iterations = PBKDF2_ITERATIONS) {
+  return crypto.pbkdf2Sync(password, salt, iterations, PBKDF2_KEYLEN, PBKDF2_DIGEST).toString('hex');
 }
 
-function verifyPassword(password, salt, storedHash) {
-  if (!salt) return password === storedHash;
-  const calculatedHash = hashPassword(password, salt);
+function verifyPassword(password, salt, storedHash, iterations) {
+  if (!salt || !storedHash) return false;
+  const calculatedHash = hashPassword(password, salt, iterations || 10000);
   try {
     return crypto.timingSafeEqual(Buffer.from(calculatedHash, 'hex'), Buffer.from(storedHash, 'hex'));
   } catch (e) {
@@ -27,13 +38,43 @@ function verifyPassword(password, salt, storedHash) {
   }
 }
 
+function toPublicUser(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    genres: user.genres || [],
+    role: user.role || 'VIP Member',
+    created_at: user.created_at
+  };
+}
+
+function isStrongPassword(password) {
+  return typeof password === 'string'
+    && password.length >= 10
+    && /[A-Za-z]/.test(password)
+    && /[0-9]/.test(password);
+}
+
+function isAdminRequest(req) {
+  const configuredKey = process.env.ADMIN_API_KEY;
+  if (!configuredKey) return false;
+  const provided = req.headers['x-admin-key'];
+  if (typeof provided !== 'string' || provided.length !== configuredKey.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(configuredKey));
+}
+
 export default async function handler(req, res) {
   try {
-    // Set CORS Headers
-        res.setHeader('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Key');
     res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -53,18 +94,14 @@ export default async function handler(req, res) {
     }
     body = body || {};
 
-    // 1. GET ALL USERS (/api/auth/users or /api/auth?action=users)
+    // 1. GET ALL USERS (/api/auth/users or /api/auth?action=users) — admin only
     if (req.method === 'GET') {
-      const safeUsers = memoryUsers.map(u => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        salt: u.salt,
-        passwordHash: u.passwordHash,
-        genres: u.genres || [],
-        role: u.role || 'VIP Member',
-        created_at: u.created_at
-      }));
+      if (!isAdminRequest(req)) {
+        res.statusCode = 403;
+        res.end(JSON.stringify({ success: false, message: 'Akses ditolak.' }));
+        return;
+      }
+      const safeUsers = memoryUsers.map(toPublicUser);
       res.statusCode = 200;
       res.end(JSON.stringify({ success: true, users: safeUsers, count: safeUsers.length }));
       return;
@@ -76,6 +113,12 @@ export default async function handler(req, res) {
       if (!name || !email || !password) {
         res.statusCode = 400;
         res.end(JSON.stringify({ success: false, message: 'Nama, email, dan kata sandi wajib diisi.' }));
+        return;
+      }
+
+      if (!isStrongPassword(password)) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: 'Kata sandi minimal 10 karakter dan harus memuat huruf serta angka.' }));
         return;
       }
 
@@ -95,6 +138,7 @@ export default async function handler(req, res) {
         email: cleanEmail,
         salt,
         passwordHash,
+        iterations: PBKDF2_ITERATIONS,
         genres: [],
         role: 'VIP Member',
         created_at: new Date().toISOString()
@@ -106,15 +150,7 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({
         success: true,
         message: 'Registrasi VIP berhasil!',
-        user: {
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          genres: newUser.genres,
-          role: newUser.role,
-          salt: newUser.salt,
-          passwordHash: newUser.passwordHash
-        }
+        user: toPublicUser(newUser)
       }));
       return;
     }
@@ -129,30 +165,16 @@ export default async function handler(req, res) {
       }
 
       const cleanEmail = email.toLowerCase().trim();
-      let user = memoryUsers.find(u => u.email === cleanEmail);
+      const user = memoryUsers.find(u => u.email === cleanEmail);
 
-      if (!user && cleanEmail === 'azmialfian487@gmail.com') {
-        const salt = crypto.randomBytes(16).toString('hex');
-        user = {
-          id: 1,
-          name: 'Alfian',
-          email: cleanEmail,
-          salt,
-          passwordHash: hashPassword(password, salt),
-          genres: ['Drakor', 'Series'],
-          role: 'Super Admin',
-          created_at: new Date().toISOString()
-        };
-        memoryUsers.push(user);
+      let isValid = false;
+      if (user) {
+        isValid = verifyPassword(password, user.salt, user.passwordHash, user.iterations);
+      } else {
+        // Hash against a dummy salt so response timing does not leak account existence.
+        hashPassword(password, DUMMY_SALT, 10000);
       }
 
-      if (!user) {
-        res.statusCode = 401;
-        res.end(JSON.stringify({ success: false, message: 'Email atau kata sandi salah.' }));
-        return;
-      }
-
-      const isValid = verifyPassword(password, user.salt, user.passwordHash);
       if (!isValid) {
         res.statusCode = 401;
         res.end(JSON.stringify({ success: false, message: 'Email atau kata sandi salah.' }));
@@ -163,13 +185,7 @@ export default async function handler(req, res) {
       res.end(JSON.stringify({
         success: true,
         message: 'Login berhasil!',
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          genres: user.genres || [],
-          role: user.role || 'VIP Member'
-        }
+        user: toPublicUser(user)
       }));
       return;
     }
@@ -183,23 +199,26 @@ export default async function handler(req, res) {
         return;
       }
 
-      const cleanEmail = email.toLowerCase().trim();
-      const user = memoryUsers.find(u => u.email === cleanEmail);
-
-      if (!user) {
-        res.statusCode = 404;
-        res.end(JSON.stringify({ success: false, message: 'Email tidak terdaftar.' }));
+      if (!isStrongPassword(newPassword)) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ success: false, message: 'Kata sandi minimal 10 karakter dan harus memuat huruf serta angka.' }));
         return;
       }
 
-      const salt = crypto.randomBytes(16).toString('hex');
-      user.salt = salt;
-      user.passwordHash = hashPassword(newPassword, salt);
+      const cleanEmail = email.toLowerCase().trim();
+      const user = memoryUsers.find(u => u.email === cleanEmail);
+
+      if (user) {
+        const salt = crypto.randomBytes(16).toString('hex');
+        user.salt = salt;
+        user.passwordHash = hashPassword(newPassword, salt);
+        user.iterations = PBKDF2_ITERATIONS;
+      }
 
       res.statusCode = 200;
       res.end(JSON.stringify({
         success: true,
-        message: 'Kata sandi berhasil diperbarui! Silakan masuk dengan kata sandi baru Anda.'
+        message: 'Jika email terdaftar, kata sandi telah diperbarui. Silakan masuk dengan kata sandi baru Anda.'
       }));
       return;
     }
@@ -207,7 +226,8 @@ export default async function handler(req, res) {
     res.statusCode = 200;
     res.end(JSON.stringify({ success: true, service: 'RuangSinema Cloud Auth API Online' }));
   } catch (fatalError) {
+    console.error('Auth handler error:', fatalError);
     res.statusCode = 500;
-    res.end(JSON.stringify({ success: false, error: fatalError.message, stack: fatalError.stack }));
+    res.end(JSON.stringify({ success: false, message: 'Terjadi gangguan pada server.' }));
   }
 }

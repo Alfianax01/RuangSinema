@@ -1,38 +1,11 @@
-// 🔄 REAL-TIME AUTO SYNC TO LOCAL MYSQL PHPMYADMIN (127.0.0.1:5001)
-export async function pushUserToLocalMySQL(userData: any) {
-  try {
-    // Attempt background sync to local auth-server.js if available
-    fetch('http://localhost:5001/api/auth/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user: userData }),
-      mode: 'cors',
-    }).catch(() => {});
-  } catch (e) {}
-}
-
-export async function syncAllLocalUsersToMySQL() {
-  try {
-    const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-    if (Array.isArray(localUsers) && localUsers.length > 0) {
-      fetch('http://localhost:5001/api/auth/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ users: localUsers }),
-        mode: 'cors',
-      }).catch(() => {});
-    }
-  } catch (e) {}
-}
-
-// Automatically sync on initial load
-if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    syncAllLocalUsersToMySQL();
-  }, 1000);
-}
-
 import type { User } from '../types';
+
+const LEGACY_LOCAL_USERS_KEY = 'bioskopku_local_users';
+
+// Older builds cached plaintext passwords in localStorage; purge them on load.
+if (typeof window !== 'undefined') {
+  localStorage.removeItem(LEGACY_LOCAL_USERS_KEY);
+}
 
 // Dynamic API URL for Vercel Cloud & Local Dev
 const getAuthApiUrl = () => {
@@ -74,47 +47,18 @@ export async function loginUser(email: string, password: string): Promise<{ succ
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: cleanEmail, password }),
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(8000),
     });
 
     const data = await res.json();
     if (res.ok && data.user) {
       saveActiveUser(data.user);
-      // Also cache in local users list for instant offline recovery
-      syncLocalUser(data.user, password);
-      pushUserToLocalMySQL({ ...data.user, password });
       return { success: true, user: data.user, message: data.message || 'Login berhasil!' };
     }
-    if (data.message) {
-      return { success: false, message: data.message };
-    }
+    return { success: false, message: data.message || 'Email atau kata sandi salah.' };
   } catch (err) {
-    // Seamless local fallback
+    return { success: false, message: 'Tidak dapat terhubung ke server. Coba lagi sebentar lagi.' };
   }
-
-  // Fallback to local stored credentials
-  const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-  const found = localUsers.find((u: any) => u.email === cleanEmail && u.password === password);
-  if (found) {
-    const user: User = { id: found.id, name: found.name, email: found.email, genres: found.genres || [] };
-    saveActiveUser(user);
-    return { success: true, user, message: 'Login berhasil!' };
-  }
-
-  // Built-in Seed Admin / VIP User Recognition
-  if (cleanEmail === 'azmialfian487@gmail.com' || cleanEmail.includes('alfian')) {
-    const defaultUser: User = {
-      id: 1788153223537,
-      name: 'Alfian',
-      email: cleanEmail,
-      genres: ['Series', 'Drama Korea', 'Film Indonesia']
-    };
-    saveActiveUser(defaultUser);
-    syncLocalUser(defaultUser, password);
-    return { success: true, user: defaultUser, message: 'Login VIP berhasil!' };
-  }
-
-  return { success: false, message: 'Email atau password salah.' };
 }
 
 export async function registerUser(name: string, email: string, password: string): Promise<{ success: boolean; user?: User; message: string }> {
@@ -126,34 +70,17 @@ export async function registerUser(name: string, email: string, password: string
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name.trim(), email: cleanEmail, password }),
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(8000),
     });
 
     const data = await res.json();
     if (res.ok && data.user) {
-      // Synchronize credential locally for login verification
-      syncLocalUser(data.user, password);
       return { success: true, user: data.user, message: data.message || 'Registrasi berhasil!' };
     }
-    if (data.message && res.status === 409) {
-      return { success: false, message: data.message };
-    }
+    return { success: false, message: data.message || 'Gagal mendaftar. Coba lagi.' };
   } catch (err) {
-    // Seamless local registration
+    return { success: false, message: 'Tidak dapat terhubung ke server. Coba lagi sebentar lagi.' };
   }
-
-  // Local persistent registration
-  const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-  if (localUsers.some((u: any) => u.email === cleanEmail)) {
-    return { success: false, message: 'Email sudah terdaftar. Silakan login.' };
-  }
-  const newUser = { id: Date.now(), name: name.trim(), email: cleanEmail, password, genres: [] };
-  localUsers.push(newUser);
-  localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
-  pushUserToLocalMySQL(newUser);
-
-  const user: User = { id: newUser.id, name: newUser.name, email: newUser.email, genres: [] };
-  return { success: true, user, message: 'Registrasi VIP berhasil!' };
 }
 
 export async function saveUserPreferences(email: string, genres: string[]): Promise<boolean> {
@@ -177,19 +104,6 @@ export async function saveUserPreferences(email: string, genres: string[]): Prom
   }
 }
 
-function syncLocalUser(user: User, password?: string) {
-  try {
-    const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-    const idx = localUsers.findIndex((u: any) => u.email === user.email);
-    if (idx >= 0) {
-      localUsers[idx] = { ...localUsers[idx], ...user, password: password || localUsers[idx].password };
-    } else {
-      localUsers.push({ ...user, password: password || 'default' });
-    }
-    localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
-  } catch (e) {}
-}
-
 export async function resetUserPassword(email: string, newPassword: string): Promise<{ success: boolean; message: string }> {
   const cleanEmail = email.toLowerCase().trim();
   const authUrl = getAuthApiUrl();
@@ -199,46 +113,15 @@ export async function resetUserPassword(email: string, newPassword: string): Pro
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: cleanEmail, newPassword }),
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(8000),
     });
 
     const data = await res.json();
-    if (res.ok && data.success) {
-      syncLocalUserPassword(cleanEmail, newPassword);
+    if (res.ok && (data.success || data.status === 'success')) {
       return { success: true, message: data.message || 'Kata sandi berhasil diperbarui!' };
     }
-    if (data.message) {
-      return { success: false, message: data.message };
-    }
-  } catch (err) {}
-
-  // Local fallback reset
-  const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-  const user = localUsers.find((u: any) => u.email === cleanEmail);
-  if (user) {
-    user.password = newPassword;
-    localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
-    return { success: true, message: 'Kata sandi berhasil diperbarui secara lokal!' };
+    return { success: false, message: data.message || 'Gagal mereset kata sandi.' };
+  } catch (err) {
+    return { success: false, message: 'Tidak dapat terhubung ke server. Coba lagi sebentar lagi.' };
   }
-
-  // If root admin account
-  if (cleanEmail === 'azmialfian487@gmail.com') {
-    syncLocalUserPassword(cleanEmail, newPassword);
-    return { success: true, message: 'Kata sandi akun admin berhasil diperbarui!' };
-  }
-
-  return { success: false, message: 'Email tidak ditemukan.' };
-}
-
-function syncLocalUserPassword(email: string, newPassword: string) {
-  try {
-    const localUsers = JSON.parse(localStorage.getItem('bioskopku_local_users') || '[]');
-    const idx = localUsers.findIndex((u: any) => u.email === email);
-    if (idx >= 0) {
-      localUsers[idx].password = newPassword;
-    } else {
-      localUsers.push({ id: Date.now(), name: 'VIP Member', email, password: newPassword, genres: [] });
-    }
-    localStorage.setItem('bioskopku_local_users', JSON.stringify(localUsers));
-  } catch (e) {}
 }
