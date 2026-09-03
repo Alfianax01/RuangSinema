@@ -41,11 +41,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [trendingFilter, setTrendingFilter] = useState<'all' | 'movies' | 'tv'>('all');
 
   const hubs: { id: HubType; label: string }[] = [
-    { id: 'all', label: 'Semua Sinema' },
-    { id: 'kdrama', label: 'Drama Korea' },
-    { id: 'dracin', label: 'Drama China' },
-    { id: 'jdrama', label: 'Dorama Jepang' },
-    { id: 'anime', label: 'Anime' },
+    { id: 'all', label: 'SEMUA SINEMA' },
+    { id: 'kdrama', label: 'DRAMA KOREA' },
+    { id: 'dracin', label: 'DRAMA CHINA' },
+    { id: 'jdrama', label: 'DORAMA JEPANG' },
+    { id: 'anime', label: 'ANIME' },
   ];
 
   // Filter trending row dynamically
@@ -58,7 +58,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   return (
     <div className="pb-28 space-y-10 animate-in fade-in duration-300 w-full">
       
-      {/* Featured Billboard Banner */}
+      {/* Featured Split Asymmetric Hero Section */}
       {featuredMovies.length > 0 && activeHub === 'all' && (
         <HeroBanner
           movies={featuredMovies}
@@ -70,23 +70,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       <div className="max-w-7xl mx-auto w-full space-y-10">
         
-        {/* Hub Filter (Angled Industrial Tabs - Goodbye Pill Shape!) */}
+        {/* Hub Filter (Clean 3px Rounded Tabs - Consistent Red Accent) */}
         <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
             {hubs.map((hub) => {
               const isActive = activeHub === hub.id;
               return (
                 <button
                   key={hub.id}
                   onClick={() => setActiveHub(hub.id)}
-                  className={`skew-tag px-4 py-2 text-xs font-mono font-bold tracking-wider uppercase whitespace-nowrap transition-all ${
+                  className={`px-4 py-2 text-xs font-mono font-bold tracking-wider uppercase whitespace-nowrap transition-all rounded-[3px] ${
                     isActive
-                      ? 'bg-[#D4FF00] text-black shadow-lg shadow-[#D4FF00]/30 border border-[#D4FF00]'
-                      : 'bg-[#121217] text-zinc-400 hover:text-white hover:bg-[#1a1a24] border border-white/10'
+                      ? 'bg-[#FF2E2E] text-white shadow-md shadow-[#FF2E2E]/25 border border-[#FF2E2E]'
+                      : 'bg-white/[0.04] text-zinc-400 hover:text-white hover:bg-white/[0.08] border border-white/10'
                   }`}
                 >
-                  <span className="skew-tag-content flex items-center gap-2">
-                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-black animate-ping" />}
+                  <span className="flex items-center gap-2">
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
                     {hub.label}
                   </span>
                 </button>
@@ -98,52 +98,50 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* DEFAULT ALL VIEW */}
         {activeHub === 'all' && (
           <>
-            {/* Trending Row with Kinetic Reel + Giant Outline Numbers */}
+            {/* Trending Row with Giant Outline Numbers */}
             <section className="space-y-3 px-4 sm:px-6 lg:px-8">
-              <div className="flex items-end justify-between border-b border-white/5 pb-2">
+              <div className="flex items-end justify-between border-b border-white/[0.06] pb-2">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-display text-xl text-[#FF1E27] font-black -skew-x-6">//</span>
-                    <h2 className="font-display text-2xl sm:text-4xl tracking-wider uppercase text-white leading-none">
-                      TRENDING NOW
+                    <span className="font-display text-xl text-[#FF2E2E] font-black">//</span>
+                    <h2 className="font-display text-2xl sm:text-4xl tracking-[0.04em] uppercase text-white leading-none">
+                      TRENDING MINGGU INI
                     </h2>
-                    <div className="skew-tag bg-[#FF1E27] px-2 py-0.5 shadow-md ml-1">
-                      <span className="skew-tag-content font-mono font-black text-white text-[9px] uppercase tracking-wider">
-                        TOP 10
-                      </span>
-                    </div>
+                    <span className="bg-[#FF2E2E] text-white text-[9px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded-[3px] ml-1 shadow-sm">
+                      TOP 10
+                    </span>
                   </div>
-                  <p className="text-[11px] font-mono text-zinc-400 pl-5">
-                    Paling banyak ditonton minggu ini · Subtitle Indonesia
+                  <p className="text-[11px] font-mono text-zinc-400 pl-5 pt-0.5 tracking-wide">
+                    Paling banyak ditonton penonton Indonesia saat ini
                   </p>
                 </div>
 
-                {/* Monospace Sharp Segment Filter (No Pills!) */}
-                <div className="flex items-center bg-[#121217] rounded-lg p-1 border border-white/10 text-xs font-mono">
+                {/* Sub-Filter Segment */}
+                <div className="flex items-center bg-white/[0.04] rounded-[3px] p-1 border border-white/10 text-xs font-mono">
                   {(['all', 'movies', 'tv'] as const).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setTrendingFilter(tab)}
-                      className={`px-3 py-1 rounded text-[11px] font-bold uppercase transition-all ${
+                      className={`px-3 py-1 rounded-[2px] text-[11px] font-bold uppercase transition-all ${
                         trendingFilter === tab 
-                          ? 'bg-[#D4FF00] text-black font-black shadow' 
+                          ? 'bg-[#FF2E2E] text-white font-black shadow-sm' 
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      {tab === 'all' ? 'ALL' : tab === 'movies' ? 'MOVIES' : 'SERIES'}
+                      {tab === 'all' ? 'SEMUA' : tab === 'movies' ? 'FILM' : 'SERIES'}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Kinetic Reel with Giant Typographic Outline Numbers */}
+              {/* Kinetic Reel */}
               <div className="flex items-center gap-4 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth pb-4 pt-1 snap-x snap-mandatory">
                 {filteredTrending.map((movie, index) => {
                   const rankNum = (index + 1).toString().padStart(2, '0');
                   return (
                     <div key={movie._id} className="flex items-end shrink-0 snap-start group relative">
                       <div className="select-none pointer-events-none -mr-4 sm:-mr-6 z-0 pb-6">
-                        <span className="font-display text-7xl sm:text-9xl font-black text-[#15151c] group-hover:text-[#D4FF00]/25 transition-colors drop-shadow-md leading-none">
+                        <span className="font-display text-7xl sm:text-9xl font-black text-white/[0.07] group-hover:text-[#FF2E2E]/25 transition-colors drop-shadow-md leading-none">
                           {rankNum}
                         </span>
                       </div>
@@ -165,7 +163,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {kdramaMovies.length > 0 && (
               <MovieCarousel
                 title="Drama Korea (K-Drama) Terpopuler"
-                subtitle="Episode terlengkap dengan subtitle Indonesia & server cepat"
+                subtitle="Episode lengkap kualitas HD dengan terjemahan Indonesia resmi"
                 movies={kdramaMovies}
                 onSelectMovie={onSelectMovie}
                 onSeeAll={() => onNavigateDiscover('K-Drama')}
@@ -176,7 +174,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {dracinMovies.length > 0 && (
               <MovieCarousel
                 title="Drama China (Dracin) Pilihan"
-                subtitle="Romansa, wuxia, dan fantasi terlaris"
+                subtitle="Romansa, kolosal wuxia, dan fantasi terlaris"
                 movies={dracinMovies}
                 onSelectMovie={onSelectMovie}
                 onSeeAll={() => onNavigateDiscover('Dracin')}
@@ -197,8 +195,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {/* Film Indonesia */}
             {indonesianMovies.length > 0 && (
               <MovieCarousel
-                title="Sinema Bioskop Indonesia"
-                subtitle="Karya layar lebar anak bangsa terfavorit"
+                title="Sinema Layar Lebar Indonesia"
+                subtitle="Karya bioskop anak bangsa terfavorit"
                 movies={indonesianMovies}
                 onSelectMovie={onSelectMovie}
                 onSeeAll={() => onNavigateDiscover('Indonesian')}
@@ -220,7 +218,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {seriesMovies.length > 0 && (
               <MovieCarousel
                 title="Serial TV Pilihan Minggu Ini"
-                subtitle="Marathon serial terbaik dari berbagai negara"
+                subtitle="Marathon serial terbaik dari berbagai penjuru dunia"
                 movies={seriesMovies}
                 onSelectMovie={onSelectMovie}
                 onSeeAll={() => onNavigateDiscover('TV Series')}
@@ -231,7 +229,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {topRated.length > 0 && (
               <MovieCarousel
                 title="Rating Tertinggi Sepanjang Masa"
-                subtitle="Koleksi masterpiece dengan skor kritikus 8.5 ke atas"
+                subtitle="Koleksi mahakarya dengan skor kritikus 8.5 ke atas"
                 movies={topRated}
                 onSelectMovie={onSelectMovie}
                 onSeeAll={() => onNavigateDiscover()}
@@ -243,14 +241,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* HUB VIEWS FOR SPECIFIC DRAMA / ANIME TABS */}
         {activeHub === 'kdrama' && (
           <section className="space-y-4 px-4 sm:px-6 lg:px-8">
-            <div className="border-b border-white/5 pb-2">
+            <div className="border-b border-white/[0.06] pb-2">
               <div className="flex items-center gap-2">
-                <span className="font-display text-xl text-[#D4FF00] font-black -skew-x-6">//</span>
-                <h2 className="font-display text-3xl sm:text-4xl tracking-wider uppercase text-white">
+                <span className="font-display text-xl text-[#FF2E2E] font-black">//</span>
+                <h2 className="font-display text-3xl sm:text-4xl tracking-[0.04em] uppercase text-white">
                   KOREAN DRAMA ZONE
                 </h2>
               </div>
-              <p className="text-xs font-mono text-zinc-400 pl-5">
+              <p className="text-xs font-mono text-zinc-400 pl-5 tracking-wide">
                 Koleksi serial drakor terlengkap dari TvN, JTBC, SBS, dan Netflix
               </p>
             </div>
@@ -264,14 +262,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {activeHub === 'dracin' && (
           <section className="space-y-4 px-4 sm:px-6 lg:px-8">
-            <div className="border-b border-white/5 pb-2">
+            <div className="border-b border-white/[0.06] pb-2">
               <div className="flex items-center gap-2">
-                <span className="font-display text-xl text-[#D4FF00] font-black -skew-x-6">//</span>
-                <h2 className="font-display text-3xl sm:text-4xl tracking-wider uppercase text-white">
+                <span className="font-display text-xl text-[#FF2E2E] font-black">//</span>
+                <h2 className="font-display text-3xl sm:text-4xl tracking-[0.04em] uppercase text-white">
                   CHINESE DRAMA ZONE
                 </h2>
               </div>
-              <p className="text-xs font-mono text-zinc-400 pl-5">
+              <p className="text-xs font-mono text-zinc-400 pl-5 tracking-wide">
                 Serial drama China wuxia, xianxia, dan romance modern terlengkap
               </p>
             </div>
@@ -285,14 +283,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {activeHub === 'jdrama' && (
           <section className="space-y-4 px-4 sm:px-6 lg:px-8">
-            <div className="border-b border-white/5 pb-2">
+            <div className="border-b border-white/[0.06] pb-2">
               <div className="flex items-center gap-2">
-                <span className="font-display text-xl text-[#D4FF00] font-black -skew-x-6">//</span>
-                <h2 className="font-display text-3xl sm:text-4xl tracking-wider uppercase text-white">
+                <span className="font-display text-xl text-[#FF2E2E] font-black">//</span>
+                <h2 className="font-display text-3xl sm:text-4xl tracking-[0.04em] uppercase text-white">
                   JAPANESE DRAMA ZONE
                 </h2>
               </div>
-              <p className="text-xs font-mono text-zinc-400 pl-5">
+              <p className="text-xs font-mono text-zinc-400 pl-5 tracking-wide">
                 Dorama Jepang menarik, slice of life, misteri & live action
               </p>
             </div>
@@ -306,14 +304,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {activeHub === 'anime' && (
           <section className="space-y-4 px-4 sm:px-6 lg:px-8">
-            <div className="border-b border-white/5 pb-2">
+            <div className="border-b border-white/[0.06] pb-2">
               <div className="flex items-center gap-2">
-                <span className="font-display text-xl text-[#D4FF00] font-black -skew-x-6">//</span>
-                <h2 className="font-display text-3xl sm:text-4xl tracking-wider uppercase text-white">
+                <span className="font-display text-xl text-[#FF2E2E] font-black">//</span>
+                <h2 className="font-display text-3xl sm:text-4xl tracking-[0.04em] uppercase text-white">
                   ANIME SERIES HUB
                 </h2>
               </div>
-              <p className="text-xs font-mono text-zinc-400 pl-5">
+              <p className="text-xs font-mono text-zinc-400 pl-5 tracking-wide">
                 Anime shonen, isekai, romcom & movie anime terpopuler subtitle Indonesia
               </p>
             </div>

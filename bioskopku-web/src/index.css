@@ -16,8 +16,8 @@
     transform: translateZ(0);
   }
   ::selection {
-    background-color: #D4FF00;
-    color: #08080a;
+    background-color: #FF2E2E;
+    color: #FFFFFF;
     font-weight: bold;
   }
 }
@@ -28,43 +28,21 @@
   letter-spacing: 0.04em;
 }
 
-/* Neon Glow Utilities */
+/* Cinema Crimson Glow Utilities */
 .glow-crimson {
-  box-shadow: 0 0 25px rgba(255, 30, 39, 0.45);
+  box-shadow: 0 0 25px rgba(255, 46, 46, 0.45);
 }
 .glow-crimson-sm {
-  box-shadow: 0 0 12px rgba(255, 30, 39, 0.35);
-}
-.glow-lime {
-  box-shadow: 0 0 25px rgba(212, 255, 0, 0.45);
-}
-.glow-lime-sm {
-  box-shadow: 0 0 12px rgba(212, 255, 0, 0.35);
-}
-
-/* Non-Pill Asymmetric Geometry */
-.card-cut {
-  border-radius: 16px 4px 16px 4px;
-}
-.card-cut-badge {
-  border-radius: 6px 1px 6px 1px;
-}
-
-/* Skewed Industrial Tags */
-.skew-tag {
-  transform: skewX(-10deg);
-}
-.skew-tag-content {
-  transform: skewX(10deg);
+  box-shadow: 0 0 12px rgba(255, 46, 46, 0.35);
 }
 
 /* Pulse Animation for CTA */
 @keyframes pulseGlow {
   0%, 100% {
-    box-shadow: 0 0 18px rgba(255, 30, 39, 0.45);
+    box-shadow: 0 0 18px rgba(255, 46, 46, 0.4);
   }
   50% {
-    box-shadow: 0 0 32px rgba(255, 30, 39, 0.8), 0 0 10px rgba(212, 255, 0, 0.5);
+    box-shadow: 0 0 28px rgba(255, 46, 46, 0.7);
   }
 }
 
@@ -86,14 +64,14 @@
   height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #08080a;
+  background: #0A0A0C;
 }
 ::-webkit-scrollbar-thumb {
   background: #202026;
-  border-radius: 4px;
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #D4FF00;
+  background: #FF2E2E;
 }
 
 .no-scrollbar::-webkit-scrollbar {

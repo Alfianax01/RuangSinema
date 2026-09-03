@@ -34,17 +34,17 @@ export const MovieCarousel: React.FC<MovieCarouselProps> = ({
 
   return (
     <section className="space-y-3 px-4 sm:px-6 lg:px-8">
-      {/* Row Header (Bold & Energic Heading) */}
-      <div className="flex items-end justify-between border-b border-white/5 pb-2">
+      {/* Row Header */}
+      <div className="flex items-end justify-between border-b border-white/[0.06] pb-2">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <span className="font-display text-xl text-[#D4FF00] font-black -skew-x-6">//</span>
-            <h2 className="font-display text-2xl sm:text-3xl tracking-wider uppercase text-white leading-none">
+            <span className="font-display text-xl text-[#FF2E2E] font-black">//</span>
+            <h2 className="font-display text-2xl sm:text-3xl tracking-[0.04em] uppercase text-white leading-none">
               {title}
             </h2>
           </div>
           {subtitle && (
-            <p className="text-[11px] font-mono text-zinc-400 pl-5">
+            <p className="text-[11px] font-mono text-zinc-400 pl-5 tracking-wide">
               {subtitle}
             </p>
           )}
@@ -54,25 +54,25 @@ export const MovieCarousel: React.FC<MovieCarouselProps> = ({
           {onSeeAll && (
             <button
               onClick={onSeeAll}
-              className="flex items-center gap-1 text-xs font-mono font-bold text-[#D4FF00] hover:text-white transition-colors"
+              className="flex items-center gap-1 text-xs font-mono font-bold text-[#FF2E2E] hover:text-white transition-colors tracking-wider"
             >
               <span>EXPLORE ALL</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}
 
-          {/* Navigation Arrows (Squared Sharp Cut) */}
+          {/* Navigation Arrows */}
           <div className="hidden sm:flex items-center gap-1.5">
             <button
               onClick={() => handleScroll('left')}
-              className="w-8 h-8 rounded-lg bg-[#121217] hover:bg-[#1a1a24] text-zinc-300 hover:text-white flex items-center justify-center border border-white/10 hover:border-[#D4FF00]/40 transition-all active:scale-95"
+              className="w-8 h-8 rounded-[3px] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white flex items-center justify-center border border-white/10 hover:border-[#FF2E2E]/40 transition-all active:scale-95"
               title="Geser Kiri"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => handleScroll('right')}
-              className="w-8 h-8 rounded-lg bg-[#121217] hover:bg-[#1a1a24] text-zinc-300 hover:text-white flex items-center justify-center border border-white/10 hover:border-[#D4FF00]/40 transition-all active:scale-95"
+              className="w-8 h-8 rounded-[3px] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white flex items-center justify-center border border-white/10 hover:border-[#FF2E2E]/40 transition-all active:scale-95"
               title="Geser Kanan"
             >
               <ChevronRight className="w-4 h-4" />
@@ -81,7 +81,7 @@ export const MovieCarousel: React.FC<MovieCarouselProps> = ({
         </div>
       </div>
 
-      {/* Horizontal Carousel with Optional Giant Typographic Rank Numbers */}
+      {/* Horizontal Carousel */}
       <div
         ref={scrollRef}
         className="flex items-center gap-4 sm:gap-5 overflow-x-auto no-scrollbar scroll-smooth pb-4 pt-1 snap-x snap-mandatory"
@@ -96,17 +96,16 @@ export const MovieCarousel: React.FC<MovieCarouselProps> = ({
             >
               {isRanked && (
                 <div className="select-none pointer-events-none -mr-4 sm:-mr-6 z-0 pb-6">
-                  <span className="font-display text-7xl sm:text-9xl font-black text-[#15151c] group-hover:text-[#D4FF00]/20 transition-colors drop-shadow-md leading-none">
+                  <span className="font-display text-7xl sm:text-9xl font-black text-white/[0.07] group-hover:text-[#FF2E2E]/25 transition-colors drop-shadow-md leading-none">
                     {rankNum}
                   </span>
                 </div>
               )}
-
               <div className="relative z-10">
                 <MovieCard
                   movie={movie}
                   onClick={onSelectMovie}
-                  layout={isRanked && index === 0 ? 'featured' : 'portrait'}
+                  layout="portrait"
                   showRating={true}
                 />
               </div>
