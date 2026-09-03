@@ -47,7 +47,7 @@ let memoryUsers = [
     passwordHash: '8b7f8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b',
     genres: ['Drakor', 'Series', 'Action'],
     role: 'Super Admin',
-    mfa_enabled: 1,
+    mfa_enabled: 0,
     mfa_type: 'totp',
     mfa_secret_enc: null,
     recovery_codes: [],
@@ -327,7 +327,8 @@ export default async function handler(req, res) {
       }
 
       // E. Cek Verifikasi 2 Langkah (2FA / MFA)
-      const requiresMfa = Boolean(user.mfa_enabled) || user.role === 'Super Admin' || user.role === 'Admin';
+      // Hanya wajibkan jika user memang sudah mengaktifkan dan mengonfigurasi kuncinya
+      const requiresMfa = Boolean(user.mfa_enabled) && Boolean(user.mfa_secret_enc);
 
       // Periksa apakah perangkat ini dipercayai (Trusted Device 30 Hari)
       const deviceTokenHeader = req.headers?.['x-device-token'] || body.deviceToken;

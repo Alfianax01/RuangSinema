@@ -619,8 +619,8 @@ const server = http.createServer(async (req, res) => {
         // Sukses -> Reset Lockout
         resetFailedAttempts(rawEmail, clientIp);
 
-        // Cek 2FA
-        const requiresMfa = Boolean(userRecord.mfa_enabled) || userRecord.role === 'Super Admin' || userRecord.role === 'Admin';
+        // Cek 2FA (Hanya jika user memang sudah mengaktifkan dan mengonfigurasi kuncinya)
+        const requiresMfa = Boolean(userRecord.mfa_enabled) && Boolean(userRecord.mfa_secret_enc);
         if (requiresMfa) {
           const mfaToken = signJwt({ userId: userRecord.id, email: userRecord.email, scope: 'mfa' }, 300);
           res.writeHead(200, { 'Content-Type': 'application/json' });
