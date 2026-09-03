@@ -10,6 +10,8 @@ const MAX_PAYLOAD_BYTES = 1024 * 1024; // 1 MB max payload
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 30;
 const PBKDF2_ITERATIONS = 210000;
+const LEGACY_PBKDF2_ITERATIONS = 10000;
+const MAX_PBKDF2_ITERATIONS = 600000;
 const ALLOWED_ORIGINS = (process.env.AUTH_ALLOWED_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
   .split(',')
   .map(o => o.trim())
@@ -135,7 +137,7 @@ function hashPassword(password, salt, iterations = PBKDF2_ITERATIONS) {
   return crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
 }
 
-function verifyPassword(password, salt, storedHash, iterations = 10000) {
+function verifyPassword(password, salt, storedHash, iterations = LEGACY_PBKDF2_ITERATIONS) {
   if (!salt || !storedHash) {
     return false;
   }
@@ -164,7 +166,7 @@ function isLoopback(ip) {
   return clean === '127.0.0.1' || clean === '::1';
 }
 
-function isTrustedAdmin(req, clientIp) {
+function isTrustedAdmin(req) {
   const configuredKey = process.env.ADMIN_API_KEY;
   if (configuredKey) {
     const provided = req.headers['x-admin-key'];
@@ -173,8 +175,15 @@ function isTrustedAdmin(req, clientIp) {
       && crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(configuredKey))) {
       return true;
     }
+    return false;
   }
-  return isLoopback(clientIp);
+  return isLoopback(req.socket.remoteAddress);
+}
+
+function normalizeIterations(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return LEGACY_PBKDF2_ITERATIONS;
+  return Math.min(Math.max(parsed, LEGACY_PBKDF2_ITERATIONS), MAX_PBKDF2_ITERATIONS);
 }
 
 function isValidEmail(email) {
@@ -184,7 +193,7 @@ function isValidEmail(email) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+  const clientIp = req.socket.remoteAddress || '127.0.0.1';
 
   // Security & CORS Headers
   const origin = req.headers.origin;
@@ -358,7 +367,7 @@ const server = http.createServer(async (req, res) => {
               email: found.email,
               password: found.passwordHash || found.password,
               salt: found.salt,
-              iterations: found.iterations || 10000,
+              iterations: normalizeIterations(found.iterations),
               genres: JSON.stringify(found.genres || []),
               role: found.role || 'VIP Member'
             };
@@ -458,7 +467,7 @@ const server = http.createServer(async (req, res) => {
 
             // 5. SYNC FROM VERCEL / CLIENT TO MYSQL PHPMYADMIN
       if (pathname === '/api/auth/sync') {
-        if (!isTrustedAdmin(req, clientIp)) {
+        if (!isTrustedAdmin(req)) {
           res.writeHead(403, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ status: 'error', message: 'Akses ditolak.' }));
           return;
@@ -477,7 +486,7 @@ const server = http.createServer(async (req, res) => {
           const name = u.name || 'VIP Member';
           const salt = u.salt;
           const passwordHash = u.passwordHash;
-          const iterations = u.iterations || 10000;
+          const iterations = normalizeIterations(u.iterations);
           const genres = JSON.stringify(u.genres || []);
           const role = u.role || 'VIP Member';
 
@@ -486,7 +495,13 @@ const server = http.createServer(async (req, res) => {
               await dbPool.query(
                 `INSERT INTO users (name, email, password, salt, iterations, genres, role) 
                  VALUES (?, ?, ?, ?, ?, ?, ?) 
-                 ON DUPLICATE KEY UPDATE genres = VALUES(genres)`,
+                 ON DUPLICATE KEY UPDATE
+                   name = VALUES(name),
+                   password = VALUES(password),
+                   salt = VALUES(salt),
+                   iterations = VALUES(iterations),
+                   genres = VALUES(genres),
+                   role = VALUES(role)`,
                 [name, cleanEmail, passwordHash, salt, iterations, genres, role]
               );
               syncedCount++;
@@ -563,7 +578,7 @@ const server = http.createServer(async (req, res) => {
 
     // GET /api/auth/users
   if (pathname === '/api/auth/users') {
-    if (!isTrustedAdmin(req, clientIp)) {
+    if (!isTrustedAdmin(req)) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'error', message: 'Akses ditolak.' }));
       return;
@@ -612,52 +627,6 @@ server.listen(PORT, () => {
   console.log(`📊 phpMyAdmin Database target: ${DB_CONFIG.user}@${DB_CONFIG.host}:${DB_CONFIG.port}/${DB_CONFIG.database}`);
 });
 
-
-// 🌐 AUTOMATIC VERCEL CLOUD -> LOCAL PHPMYADMIN MYSQL AUTO-PULL ENGINE
-const VERCEL_USERS_API = 'https://ruang-sinema.vercel.app/api/auth/users';
-
-async function syncVercelUsersToLocalMySQL() {
-  if (!isDbConnected || !dbPool) return;
-
-  try {
-    const adminKey = process.env.ADMIN_API_KEY;
-    if (!adminKey) return;
-
-    const res = await fetch(VERCEL_USERS_API, {
-      headers: { 'X-Admin-Key': adminKey },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const users = data.users || [];
-      
-      for (const u of users) {
-        const cleanEmail = (u.email || '').toLowerCase().trim();
-        if (!cleanEmail) continue;
-
-        if (!u.salt || !u.passwordHash) continue;
-
-        const name = u.name || 'VIP Member';
-        const salt = u.salt;
-        const passwordHash = u.passwordHash;
-        const genres = JSON.stringify(u.genres || []);
-        const role = u.role || 'VIP Member';
-
-        const [existing] = await dbPool.query('SELECT id FROM users WHERE email = ?', [cleanEmail]);
-        if (existing.length === 0) {
-          const [insertRes] = await dbPool.query(
-            `INSERT INTO users (name, email, password, salt, genres, role) VALUES (?, ?, ?, ?, ?, ?)`,
-            [name, cleanEmail, passwordHash, salt, genres, role]
-          );
-          console.log(`✨ [Auto-Sync Vercel -> MySQL] Inserted user (${cleanEmail}) into phpMyAdmin table 'users' (ID: ${insertRes.insertId})`);
-        }
-      }
-    }
-  } catch (e) {
-    // Silent fail if internet/Vercel is connecting
-  }
-}
-
-// Automatically poll Vercel Cloud every 5 seconds
-setInterval(syncVercelUsersToLocalMySQL, 3000);
-setTimeout(syncVercelUsersToLocalMySQL, 2000);
+// Cloud -> local user replication is intentionally not automated: the cloud API only
+// exposes public profile fields, so credentials must be pushed to /api/auth/sync by a
+// trusted caller instead of being pulled from a public listing.
