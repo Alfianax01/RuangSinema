@@ -1,0 +1,117 @@
+/**
+ * RuangSinema Local Movies API (Cloud Bridge & Fallback)
+ */
+
+let cloudMockMovies = [
+  {
+    id: "local-dune-2",
+    _id: "local-dune-2",
+    title: "Dune: Part Two",
+    type: "movie",
+    posterImg: "https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg",
+    backdropImg: "https://image.tmdb.org/t/p/original/xOMo8BRK7PfcJv9JCnx7s5hj0xO.jpg",
+    rating: "8.6",
+    year: "2024",
+    duration: "2j 46m",
+    genres: ["Action", "Sci-Fi", "Adventure"],
+    synopsis: "Paul Atreides bersatu dengan Chani dan suku Fremen sambil membalas dendam terhadap para konspirator yang menghancurkan keluarganya.",
+    trailerUrl: "https://www.youtube.com/watch?v=Way9Dexny3w",
+    videoUrl: "https://vidsrc.to/embed/movie/693134",
+    localFilePath: "C:\\Users\\loq\\Videos\\Movies\\Dune.Part.Two.2024.1080p.mp4",
+    quality: "1080p Full HD",
+    streamSources: [
+      { provider: "Local PC Hard Drive", url: "file:///C:/Users/loq/Videos/Movies/Dune.Part.Two.2024.1080p.mp4", quality: "1080p Offline" },
+      { provider: "VidSrc Pro Cloud", url: "https://vidsrc.to/embed/movie/693134", quality: "1080p HD" }
+    ],
+    created_at: "2026-10-05T12:00:00.000Z"
+  },
+  {
+    id: "local-agak-laen",
+    _id: "local-agak-laen",
+    title: "Agak Laen",
+    type: "movie",
+    posterImg: "https://image.tmdb.org/t/p/w500/A0vT4bU4Z07a4u70e3v9tYp1t0Y.jpg",
+    backdropImg: "https://image.tmdb.org/t/p/original/1zWw5nB53y7T2kU3N4Z9T1K9t0Z.jpg",
+    rating: "8.8",
+    year: "2024",
+    duration: "1j 59m",
+    genres: ["Comedy", "Horror", "Film Indo"],
+    synopsis: "Empat sahabat pengelola rumah hantu pasar malam yang terancam bangkrut mendadak menghadapi kekacauan ketika seorang pengunjung meninggal di dalam wahana mereka.",
+    trailerUrl: "https://www.youtube.com/watch?v=48y9F_AgakLaen",
+    videoUrl: "https://vidsrc.to/embed/movie/1214314",
+    localFilePath: "C:\\Users\\loq\\Videos\\Movies\\Agak.Laen.2024.1080p.mp4",
+    quality: "1080p Full HD",
+    streamSources: [
+      { provider: "Local PC Hard Drive", url: "file:///C:/Users/loq/Videos/Movies/Agak.Laen.2024.1080p.mp4", quality: "1080p Offline" },
+      { provider: "VidSrc Pro Cloud", url: "https://vidsrc.to/embed/movie/1214314", quality: "1080p HD" }
+    ],
+    created_at: "2026-10-05T12:05:00.000Z"
+  },
+  {
+    id: "local-exhuma",
+    _id: "local-exhuma",
+    title: "Exhuma",
+    type: "movie",
+    posterImg: "https://image.tmdb.org/t/p/w500/6v7F3rM6pT5e5T4Y1Q9Z7M3Y8t9.jpg",
+    backdropImg: "https://image.tmdb.org/t/p/original/x0Z9Y8m2t4U5Q7Z9Y8m2t4U5Q7Z.jpg",
+    rating: "8.4",
+    year: "2024",
+    duration: "2j 14m",
+    genres: ["Horror", "Mystery", "Thriller", "Drakor"],
+    synopsis: "Dua dukun muda, seorang ahli feng shui, dan seorang petugas pemakaman menggali makam misterius demi menyelamatkan sebuah keluarga kaya, namun melepaskan kekuatan jahat kuno.",
+    trailerUrl: "https://www.youtube.com/watch?v=ExhumaOfficialTrailer",
+    videoUrl: "https://vidsrc.to/embed/movie/1017400",
+    localFilePath: "C:\\Users\\loq\\Videos\\Movies\\Exhuma.2024.1080p.KORSUB.mp4",
+    quality: "1080p Full HD",
+    streamSources: [
+      { provider: "Local PC Hard Drive", url: "file:///C:/Users/loq/Videos/Movies/Exhuma.2024.1080p.KORSUB.mp4", quality: "1080p Offline" },
+      { provider: "VidSrc Pro Cloud", url: "https://vidsrc.to/embed/movie/1017400", quality: "1080p HD" }
+    ],
+    created_at: "2026-10-05T12:10:00.000Z"
+  }
+];
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Content-Type', 'application/json');
+
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 200;
+    res.end();
+    return;
+  }
+
+  if (req.method === 'GET') {
+    res.statusCode = 200;
+    res.end(JSON.stringify({ status: 'success', movies: cloudMockMovies, count: cloudMockMovies.length }));
+    return;
+  }
+
+  if (req.method === 'POST') {
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch (e) { body = {}; }
+    }
+    const movie = { ...body, id: body?.id || `local-${Date.now()}` };
+    cloudMockMovies.unshift(movie);
+    res.statusCode = 200;
+    res.end(JSON.stringify({ status: 'success', message: 'Film berhasil disimpan.', movie }));
+    return;
+  }
+
+  if (req.method === 'DELETE') {
+    const url = new URL(req.url, 'http://localhost');
+    const id = url.searchParams.get('id');
+    if (id) {
+      cloudMockMovies = cloudMockMovies.filter(m => m.id !== id && m._id !== id);
+    }
+    res.statusCode = 200;
+    res.end(JSON.stringify({ status: 'success', message: 'Film berhasil dihapus.' }));
+    return;
+  }
+
+  res.statusCode = 405;
+  res.end(JSON.stringify({ status: 'error', message: 'Method Not Allowed' }));
+}

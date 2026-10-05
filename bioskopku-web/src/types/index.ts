@@ -11,6 +11,9 @@ export interface Movie {
   backdropImg?: string;
   year?: string;
   duration?: string;
+  quality?: string;
+  videoUrl?: string;
+  localFilePath?: string;
 }
 
 export interface CastMember {
@@ -69,6 +72,9 @@ export interface MovieDetails extends Movie {
   imdbId?: string;
   releaseStatus?: string;
   isComingSoon?: boolean;
+  videoUrl?: string;
+  localFilePath?: string;
+  streamSources?: { provider: string; url: string; quality?: string }[];
 }
 
 export interface StreamSource {

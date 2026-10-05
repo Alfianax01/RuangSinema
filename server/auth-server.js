@@ -63,6 +63,25 @@ function saveFallbackUsers(users) {
   } catch (e) {}
 }
 
+// Local Movies Persistent Hard Drive JSON Store
+const localMoviesFile = path.join(__dirname, 'movies_local.json');
+
+function getLocalMovies() {
+  try {
+    if (fs.existsSync(localMoviesFile)) {
+      const data = JSON.parse(fs.readFileSync(localMoviesFile, 'utf8'));
+      if (Array.isArray(data)) return data;
+    }
+  } catch (e) {}
+  return [];
+}
+
+function saveLocalMovies(movies) {
+  try {
+    fs.writeFileSync(localMoviesFile, JSON.stringify(movies, null, 2), 'utf8');
+  } catch (e) {}
+}
+
 // In-Memory Rate Limiting & Lockout Store
 const attemptStore = new Map();
 const ipBlocklist = new Set();
@@ -336,6 +355,30 @@ async function initDatabase() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
+    // 4. Table movies (Local Cinema Library on PC Hard Drive)
+    await dbPool.query(`
+      CREATE TABLE IF NOT EXISTS \`movies\` (
+        \`id\` VARCHAR(100) NOT NULL PRIMARY KEY,
+        \`title\` VARCHAR(255) NOT NULL,
+        \`type\` VARCHAR(20) DEFAULT 'movie',
+        \`poster_img\` TEXT NULL,
+        \`backdrop_img\` TEXT NULL,
+        \`rating\` VARCHAR(10) DEFAULT '8.5',
+        \`year\` VARCHAR(10) DEFAULT '2024',
+        \`duration\` VARCHAR(50) DEFAULT '2j 00m',
+        \`genres\` TEXT NULL,
+        \`synopsis\` TEXT NULL,
+        \`trailer_url\` TEXT NULL,
+        \`video_url\` TEXT NULL,
+        \`stream_sources\` LONGTEXT NULL,
+        \`local_file_path\` TEXT NULL,
+        \`quality\` VARCHAR(50) DEFAULT '1080p Full HD',
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX \`idx_title\` (\`title\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
     isDbConnected = true;
     console.log(`✅ [MySQL phpMyAdmin] Connected successfully to database "${DB_CONFIG.database}" on port ${DB_CONFIG.port}`);
   } catch (err) {
@@ -436,6 +479,65 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 3. GET /api/movies (Daftar Film Tersimpan di Database Lokal PC & Hard Drive)
+  if (req.method === 'GET' && (pathname === '/api/movies' || pathname === '/api/movies/list')) {
+    let moviesList = [];
+    if (isDbConnected && dbPool) {
+      try {
+        const [rows] = await dbPool.query('SELECT * FROM movies ORDER BY created_at DESC');
+        if (rows && rows.length > 0) {
+          moviesList = rows.map(r => ({
+            _id: r.id,
+            id: r.id,
+            title: r.title,
+            type: r.type,
+            posterImg: r.poster_img,
+            backdropImg: r.backdrop_img,
+            rating: r.rating,
+            year: r.year,
+            duration: r.duration,
+            genres: r.genres ? (typeof r.genres === 'string' ? JSON.parse(r.genres) : r.genres) : [],
+            synopsis: r.synopsis,
+            trailerUrl: r.trailer_url,
+            videoUrl: r.video_url,
+            streamSources: r.stream_sources ? (typeof r.stream_sources === 'string' ? JSON.parse(r.stream_sources) : r.stream_sources) : [],
+            localFilePath: r.local_file_path,
+            quality: r.quality,
+            created_at: r.created_at
+          }));
+        }
+      } catch (e) {}
+    }
+    if (moviesList.length === 0) {
+      moviesList = getLocalMovies().map(m => ({
+        ...m,
+        _id: m._id || m.id
+      }));
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'success', movies: moviesList, count: moviesList.length }));
+    return;
+  }
+
+  // 4. DELETE /api/movies (Hapus Film dari Database Lokal PC)
+  if (req.method === 'DELETE' && pathname === '/api/movies') {
+    const movieId = parsedUrl.query?.id;
+    if (movieId) {
+      const localList = getLocalMovies().filter(m => m.id !== movieId && m._id !== movieId);
+      saveLocalMovies(localList);
+      if (isDbConnected && dbPool) {
+        try {
+          await dbPool.query('DELETE FROM movies WHERE id = ?', [movieId]);
+        } catch (e) {}
+      }
+      console.log(`🗑️ [Database PC] Film ID "${movieId}" berhasil dihapus.`);
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'success', message: 'Film berhasil dihapus dari database lokal PC.' }));
+    return;
+  }
+
   // POST Request Body Reader
   if (req.method === 'POST') {
     let body = '';
@@ -455,6 +557,97 @@ const server = http.createServer(async (req, res) => {
       } catch (e) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'error', message: 'JSON tidak valid.' }));
+        return;
+      }
+
+      // =========================================================================
+      // 0. POST /api/movies (Simpan / Tambah Film ke Database Lokal PC Hard Drive & MySQL)
+      // =========================================================================
+      if (pathname === '/api/movies' || pathname === '/api/movies/save') {
+        const movieData = data || {};
+        const movieId = String(movieData.id || movieData._id || `local-${Date.now()}`);
+        const cleanTitle = (movieData.title || 'Judul Film').trim();
+
+        // 1. Simpan ke JSON File Hard Drive Lokal PC
+        const localList = getLocalMovies();
+        const idx = localList.findIndex(m => (m.id === movieId || m._id === movieId || m.title.toLowerCase() === cleanTitle.toLowerCase()));
+        const itemToSave = {
+          id: movieId,
+          _id: movieId,
+          title: cleanTitle,
+          type: movieData.type || 'movie',
+          posterImg: movieData.posterImg || movieData.poster_img || 'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
+          backdropImg: movieData.backdropImg || movieData.backdrop_img || '',
+          rating: String(movieData.rating || '8.5'),
+          year: String(movieData.year || new Date().getFullYear()),
+          duration: movieData.duration || '2j 00m',
+          genres: Array.isArray(movieData.genres) ? movieData.genres : ['Action'],
+          synopsis: movieData.synopsis || 'Tersimpan di database lokal PC.',
+          trailerUrl: movieData.trailerUrl || movieData.trailer_url || '',
+          videoUrl: movieData.videoUrl || movieData.video_url || '',
+          localFilePath: movieData.localFilePath || movieData.local_file_path || '',
+          quality: movieData.quality || '1080p Full HD',
+          streamSources: Array.isArray(movieData.streamSources) && movieData.streamSources.length > 0 ? movieData.streamSources : [
+            { provider: 'Local PC Hard Drive', url: movieData.videoUrl || movieData.localFilePath || '', quality: '1080p Offline' }
+          ],
+          created_at: new Date().toISOString()
+        };
+
+        if (idx >= 0) {
+          localList[idx] = { ...localList[idx], ...itemToSave, updated_at: new Date().toISOString() };
+        } else {
+          localList.unshift(itemToSave);
+        }
+        saveLocalMovies(localList);
+
+        // 2. Simpan ke MySQL jika MySQL aktif
+        if (isDbConnected && dbPool) {
+          try {
+            await dbPool.query(`
+              INSERT INTO movies (id, title, type, poster_img, backdrop_img, rating, year, duration, genres, synopsis, trailer_url, video_url, stream_sources, local_file_path, quality, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+              ON DUPLICATE KEY UPDATE
+                title = VALUES(title),
+                type = VALUES(type),
+                poster_img = VALUES(poster_img),
+                backdrop_img = VALUES(backdrop_img),
+                rating = VALUES(rating),
+                year = VALUES(year),
+                duration = VALUES(duration),
+                genres = VALUES(genres),
+                synopsis = VALUES(synopsis),
+                trailer_url = VALUES(trailer_url),
+                video_url = VALUES(video_url),
+                stream_sources = VALUES(stream_sources),
+                local_file_path = VALUES(local_file_path),
+                quality = VALUES(quality),
+                updated_at = NOW()
+            `, [
+              itemToSave.id,
+              itemToSave.title,
+              itemToSave.type,
+              itemToSave.posterImg,
+              itemToSave.backdropImg,
+              itemToSave.rating,
+              itemToSave.year,
+              itemToSave.duration,
+              JSON.stringify(itemToSave.genres),
+              itemToSave.synopsis,
+              itemToSave.trailerUrl,
+              itemToSave.videoUrl,
+              JSON.stringify(itemToSave.streamSources),
+              itemToSave.localFilePath,
+              itemToSave.quality
+            ]);
+            console.log(`💾 [MySQL Local Movies] Film "${cleanTitle}" berhasil disimpan ke tabel MySQL movies!`);
+          } catch (err) {
+            console.warn(`⚠️ [MySQL Save Warning] ${err.message}`);
+          }
+        }
+
+        console.log(`💾 [PC Hard Drive] Film "${cleanTitle}" berhasil disimpan ke server/movies_local.json!`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'success', message: `Film "${cleanTitle}" berhasil disimpan ke database lokal PC!`, movie: itemToSave }));
         return;
       }
 

@@ -3,10 +3,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Star, ArrowLeft, Video, Sparkles, 
   ChevronLeft, ChevronRight, ArrowUpDown, Plus, Check, Download,
-  Zap, RefreshCw, Maximize2, Minimize2, ExternalLink, X
+  Zap, RefreshCw, Maximize2, Minimize2, ExternalLink, X, HardDrive
 } from 'lucide-react';
 import type { MovieDetails, Movie, EpisodeItem, StreamSource, ActorProfile } from '../types';
 import { fetchSeasonEpisodes, fetchSimilarMovies, fetchMovieDetails, fetchStreamSources, fetchActorDetailsAndCredits, fetchMovieTrailer } from '../services/api';
+import { saveMovieToLocalDB, deleteMovieFromLocalDB, isMovieSavedToLocalDB } from '../services/localMovies';
 import { MovieCard } from '../components/MovieCard';
 import { DownloadModal } from '../components/DownloadModal';
 
@@ -51,6 +52,26 @@ export const DetailScreen: React.FC<DetailScreenProps> = ({
   const [currentMovie, setCurrentMovie] = useState<MovieDetails>(initialMovie);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [selectedActorProfile, setSelectedActorProfile] = useState<ActorProfile | null>(null);
+  const [isLocalSaved, setIsLocalSaved] = useState(false);
+  const [localSaveToast, setLocalSaveToast] = useState('');
+
+  useEffect(() => {
+    setIsLocalSaved(isMovieSavedToLocalDB(initialMovie._id || initialMovie.title));
+  }, [initialMovie]);
+
+  const handleToggleLocalSave = async () => {
+    if (isLocalSaved) {
+      await deleteMovieFromLocalDB(currentMovie._id);
+      setIsLocalSaved(false);
+      setLocalSaveToast('Dihapus dari Database PC');
+      setTimeout(() => setLocalSaveToast(''), 3500);
+    } else {
+      const res = await saveMovieToLocalDB(currentMovie);
+      setIsLocalSaved(true);
+      setLocalSaveToast(res.message);
+      setTimeout(() => setLocalSaveToast(''), 3500);
+    }
+  };
 
   // In-Page Cinema Video Player State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -435,7 +456,28 @@ export const DetailScreen: React.FC<DetailScreenProps> = ({
                 <span>Koleksi</span>
               </button>
             )}
+
+            {/* Simpan ke Database PC / Laptop Lokal */}
+            <button
+              onClick={handleToggleLocalSave}
+              className={`px-4 py-2.5 rounded font-bold text-xs sm:text-sm flex items-center gap-2 border backdrop-blur-md active:scale-95 transition-all ${
+                isLocalSaved
+                  ? 'bg-[#FF2E2E]/20 border-[#FF2E2E]/50 text-[#FF2E2E] hover:bg-[#FF2E2E]/30'
+                  : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
+              }`}
+              title="Simpan film ini langsung ke database lokal PC & Hard Drive (MySQL / movies_local.json)"
+            >
+              <HardDrive className={`w-4 h-4 ${isLocalSaved ? 'text-[#FF2E2E]' : 'text-zinc-300'}`} />
+              <span>{isLocalSaved ? 'Tersimpan di PC' : 'Simpan ke Database PC'}</span>
+            </button>
           </div>
+
+          {localSaveToast && (
+            <div className="inline-flex items-center gap-2 bg-[#121318] border border-[#FF2E2E]/40 text-white text-xs px-3 py-1.5 rounded-[3px] shadow-lg animate-in fade-in">
+              <span className="w-2 h-2 rounded-full bg-[#FF2E2E] animate-ping" />
+              <span>{localSaveToast}</span>
+            </div>
+          )}
 
           {/* Metadata line */}
           <div className="flex items-center flex-wrap gap-3 text-xs text-gray-300 font-medium pt-1">
