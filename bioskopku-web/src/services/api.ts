@@ -95,6 +95,8 @@ const IDLIX_SLUG_MAP: Record<string, string> = {
   'civil-war-2024': '929590',
   'challengers-2024': '937287',
   'furiosa-2024': '786892',
+  'shape-of-my-heart-2024': '1285366',
+  'shape-of-my-heart': '1285366',
 };
 
 const GENRE_MAP: Record<number, string> = {
